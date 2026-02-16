@@ -8,7 +8,14 @@ public static class AnimalProfileCatalog
                 SpeciesType.Tigre, SexType.Male, FoodType.Meat,
                 12m, 2, 6 * 365, null, 14 * 365, null, 25 * 365,
                 false, null, null, null, null)
-        }
+        },
+        {
+            (SpeciesType.Tigre, SexType.Female),
+            new AnimalProfile(
+                SpeciesType.Tigre, SexType.Female, FoodType.Meat, 
+                10m, 2, 4 * 365, 3, 14 * 365, 0.33m, 25 * 365,
+                false, 3, 20, null, null) 
+        },
     };
 
     public static AnimalProfile Get(SpeciesType species, SexType sex)
