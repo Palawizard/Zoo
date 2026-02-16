@@ -1,0 +1,70 @@
+@startuml ZooSimulatorRules
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam dpi 120
+top to bottom direction
+
+title Zoo Simulator - Rules (Reproduction + Disease)
+
+class ZooState
+class Animal
+class Habitat
+
+package "Domain.Reproduction" {
+  class ReproductionRules {
+    +requiresNoHunger : bool
+    +requiresNoDisease : bool
+    +requiresFreeSpace : bool
+    +femaleFoodMultiplierDuringGestation : decimal
+    +noAdultReproductionFirstArrivalMonth : bool
+  }
+
+  class ReproductionService {
+    +tryReproduction(state : ZooState) : void
+    +processBirths(state : ZooState) : void
+    +applyInfantMortality(state : ZooState) : void
+  }
+}
+
+package "Domain.Health" {
+  enum SpeciesType {
+    Tiger
+    Eagle
+    Chicken
+  }
+
+  class DiseaseProfile {
+    +species : SpeciesType
+    +annualProbability : decimal
+    +baseDurationDays : int
+    +durationVariationRate : decimal
+    +mortalityRate : decimal
+  }
+
+  class DiseaseService {
+    +rollDiseases(state : ZooState) : void
+    +processDiseaseProgress(state : ZooState) : void
+  }
+}
+
+ReproductionService ..> ReproductionRules
+ReproductionService ..> ZooState
+ReproductionService ..> Animal
+ReproductionService ..> Habitat
+
+DiseaseService ..> DiseaseProfile
+DiseaseService ..> ZooState
+DiseaseService ..> Animal
+DiseaseProfile ..> SpeciesType
+
+note bottom of ReproductionRules
+Business constraints:
+- no reproduction if hungry
+- no reproduction if sick
+- female loses fetus if hungry
+- female food x2 during gestation
+- free slot required for offspring
+end note
+@enduml

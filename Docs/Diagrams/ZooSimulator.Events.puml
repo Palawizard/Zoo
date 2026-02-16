@@ -1,0 +1,65 @@
+@startuml ZooSimulatorEvents
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam dpi 120
+top to bottom direction
+
+title Zoo Simulator - Events
+
+class ZooState
+
+package "Domain.Events" {
+  abstract class SimulationEvent {
+    +id : Guid
+    +eventDate : DateOnly
+    +description : string
+  }
+
+  class PregnancyStartedEvent
+  class BirthEvent
+  class InfantDeathEvent
+  class EndOfLifeEvent
+  class OverpopulationEvent
+  class DiseaseEvent
+  class FireEvent
+  class TheftEvent
+  class PestEvent
+  class SpoiledMeatEvent
+
+  class EventProbabilityTable {
+    +fireMonthlyRate : decimal
+    +theftMonthlyRate : decimal
+    +pestMonthlyRate : decimal
+    +spoiledMeatMonthlyRate : decimal
+  }
+
+  class ExceptionalEventService {
+    +rollMonthlyEvent(state : ZooState) : SimulationEvent
+  }
+}
+
+PregnancyStartedEvent --|> SimulationEvent
+BirthEvent --|> SimulationEvent
+InfantDeathEvent --|> SimulationEvent
+EndOfLifeEvent --|> SimulationEvent
+OverpopulationEvent --|> SimulationEvent
+DiseaseEvent --|> SimulationEvent
+FireEvent --|> SimulationEvent
+TheftEvent --|> SimulationEvent
+PestEvent --|> SimulationEvent
+SpoiledMeatEvent --|> SimulationEvent
+
+ExceptionalEventService ..> EventProbabilityTable
+ExceptionalEventService ..> ZooState
+ExceptionalEventService ..> SimulationEvent
+
+note bottom of EventProbabilityTable
+Monthly rates:
+- fire: 1%
+- theft: 1%
+- pests: 20%
+- spoiled meat: 10%
+end note
+@enduml

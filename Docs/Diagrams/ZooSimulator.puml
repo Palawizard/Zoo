@@ -1,0 +1,60 @@
+@startuml ZooSimulator
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam dpi 120
+top to bottom direction
+
+title Zoo Simulator - Overview
+
+package "Domain" {
+  class Animal
+  class Habitat
+  class FoodStock
+  class SimulationEvent
+}
+
+package "Application" {
+  class ZooSimulationService
+  class RuleEngine
+  class TurnReport
+}
+
+package "Infrastructure" {
+  interface IGameRepository
+  interface IRandomProvider
+}
+
+package "Presentation.Console" {
+  class ConsoleApp
+  class GameScreen
+  class MainMenu
+}
+
+class Zoo
+class ZooState
+
+Zoo *-- ZooState
+Zoo ..> ZooSimulationService
+ZooSimulationService ..> RuleEngine
+ZooSimulationService ..> IGameRepository
+ZooSimulationService ..> IRandomProvider
+ZooState o-- Animal
+ZooState o-- Habitat
+ZooState *-- FoodStock
+ZooState o-- SimulationEvent
+ConsoleApp ..> MainMenu
+ConsoleApp ..> GameScreen
+ConsoleApp ..> ZooSimulationService
+RuleEngine ..> TurnReport
+
+note bottom
+Detailed diagrams:
+- Docs/Diagrams/ZooSimulator.Domain.puml
+- Docs/Diagrams/ZooSimulator.Economy.puml
+- Docs/Diagrams/ZooSimulator.Rules.puml
+- Docs/Diagrams/ZooSimulator.Events.puml
+- Docs/Diagrams/ZooSimulator.AppInfraUI.puml
+end note
+@enduml

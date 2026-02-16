@@ -1,0 +1,81 @@
+@startuml ZooSimulatorEconomy
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam dpi 120
+top to bottom direction
+
+title Zoo Simulator - Economy (Food + Visitors + Finance)
+
+class ZooState
+class Animal
+
+package "Domain.Feeding" {
+  class FoodStock {
+    +meatKg : decimal
+    +seedsKg : decimal
+    +add(type : FoodType, kg : decimal) : void
+    +consume(type : FoodType, kg : decimal) : bool
+    +losePercent(type : FoodType, pct : decimal) : void
+  }
+
+  class FoodMarket {
+    +buy(type : FoodType, kg : decimal) : decimal
+    +pricePerKg(type : FoodType) : decimal
+  }
+
+  enum FoodType {
+    Meat
+    Seeds
+  }
+}
+
+package "Domain.Visitors" {
+  class VisitorPricing {
+    +adultPrice : decimal
+    +childPrice : decimal
+  }
+
+  class VisitorStats {
+    +monthlyVisitors : int
+    +computeVisitors() : int
+    +computeRevenue(pricing : VisitorPricing) : decimal
+  }
+
+  enum Season {
+    Low
+    High
+  }
+}
+
+package "Domain.Finance" {
+  enum SpeciesType {
+    Tiger
+    Eagle
+    Chicken
+  }
+
+  class AnimalMarket {
+    +buyAnimalPrice(species : SpeciesType, ageDays : int) : decimal
+    +sellAnimalPrice(species : SpeciesType, ageDays : int) : decimal
+  }
+
+  class SubsidyPolicy {
+    +annualSubsidy(species : SpeciesType) : decimal
+    +applyAnnualSubsidies(state : ZooState) : decimal
+  }
+}
+
+ZooState *-- FoodStock
+ZooState *-- VisitorStats
+ZooState o-- "0..*" Animal
+FoodStock ..> FoodType
+FoodMarket ..> FoodType
+VisitorStats ..> Season
+VisitorStats ..> Animal
+VisitorStats --> VisitorPricing
+AnimalMarket ..> SpeciesType
+SubsidyPolicy ..> SpeciesType
+SubsidyPolicy ..> ZooState
+@enduml

@@ -1,0 +1,92 @@
+@startuml ZooSimulatorAppInfraUI
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam dpi 120
+top to bottom direction
+
+title Zoo Simulator - Application + Infrastructure + Console UI
+
+class ZooState
+class Animal
+class TurnReport
+
+package "Application" {
+  class ZooSimulationService {
+    +nextTurn() : TurnReport
+    +buyAnimal() : bool
+    +sellAnimal() : bool
+    +buyFood() : bool
+    +buyHabitat() : bool
+    +sellHabitat() : bool
+  }
+
+  class RuleEngine {
+    +processDay(state : ZooState) : void
+    +processMonth(state : ZooState) : TurnReport
+  }
+}
+
+package "Infrastructure" {
+  interface IRandomProvider {
+    +nextDouble() : double
+    +nextInt(min : int, max : int) : int
+  }
+
+  class DefaultRandomProvider
+
+  interface IGameRepository {
+    +save(slot : string, state : ZooState) : void
+    +load(slot : string) : ZooState
+  }
+
+  class JsonGameRepository
+}
+
+package "Presentation.Console" {
+  class ConsoleApp {
+    +run() : void
+  }
+
+  class MainMenu {
+    +show() : MenuChoice
+  }
+
+  class GameScreen {
+    +renderState(state : ZooState) : void
+    +renderTurnReport(report : TurnReport) : void
+  }
+
+  class AsciiRenderer {
+    +drawZoo(state : ZooState) : string
+    +drawAnimal(animal : Animal) : string
+  }
+
+  enum MenuChoice {
+    BuyAnimal
+    SellAnimal
+    BuyFood
+    BuyHabitat
+    SellHabitat
+    NextTurn
+    Save
+    Load
+    Quit
+  }
+}
+
+DefaultRandomProvider ..|> IRandomProvider
+JsonGameRepository ..|> IGameRepository
+
+ZooSimulationService ..> RuleEngine
+ZooSimulationService ..> IGameRepository
+ZooSimulationService ..> IRandomProvider
+ZooSimulationService ..> ZooState
+
+ConsoleApp ..> MainMenu
+ConsoleApp ..> GameScreen
+ConsoleApp ..> ZooSimulationService
+GameScreen ..> AsciiRenderer
+MainMenu ..> MenuChoice
+@enduml

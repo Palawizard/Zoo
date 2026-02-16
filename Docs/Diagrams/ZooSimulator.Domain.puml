@@ -1,0 +1,93 @@
+@startuml ZooSimulatorDomain
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam dpi 120
+top to bottom direction
+
+title Zoo Simulator - Domain (Animals + Habitats)
+
+package "Domain.Animals" {
+  abstract class Animal {
+    +id : Guid
+    +species : SpeciesType
+    +sex : Sex
+    +ageDays : int
+    +isAlive : bool
+    +isHungry : bool
+    +isSick : bool
+  }
+
+  class Tiger
+  class Eagle
+  class Chicken
+
+  class Female {
+    +isGestating : bool
+    +gestationRemainingDays : int
+  }
+
+  class AnimalProfile {
+    +foodType : FoodType
+    +dailyFoodKg : decimal
+    +daysBeforeHungry : int
+    +sexualMaturityDays : int
+    +reproductionEndDays : int
+    +lifeExpectancyDays : int
+    +infantMortalityRate : decimal
+  }
+
+  enum SpeciesType {
+    Tiger
+    Eagle
+    Chicken
+  }
+
+  enum Sex {
+    Male
+    Female
+  }
+}
+
+package "Domain.Habitats" {
+  class Habitat {
+    +id : Guid
+    +type : HabitatType
+    +capacity : int
+    +purchasePrice : decimal
+    +sellPrice : decimal
+    +monthlyOverpopulationLoss : int
+    +monthlyDiseaseProbability : decimal
+  }
+
+  class HabitatOccupancy {
+    +habitatId : Guid
+    +animalIds : List<Guid>
+  }
+
+  enum HabitatType {
+    TigerEnclosure
+    EagleAviary
+    ChickenCoop
+  }
+}
+
+enum FoodType {
+  Meat
+  Seeds
+}
+
+Tiger --|> Animal
+Eagle --|> Animal
+Chicken --|> Animal
+Female --|> Animal
+Animal --> AnimalProfile
+Animal ..> SpeciesType
+Animal ..> Sex
+AnimalProfile ..> FoodType
+
+Habitat *-- HabitatOccupancy
+Habitat ..> HabitatType
+HabitatOccupancy o-- "0..*" Animal
+@enduml
