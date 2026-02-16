@@ -17,9 +17,6 @@ public abstract class Animal
     public bool IsSick { get; protected set; }
 
     public int HungerDebtDays { get; private set; }
-    public bool IsPregnant { get; private set; }
-    public int PregnancyDays { get; private set; }
-    public int? LastBirthDay { get; private set; }
 
 
     protected Animal(string name, SexType sex, SpeciesType species, int ageDays, bool isHungry, bool isSick)
@@ -32,5 +29,32 @@ public abstract class Animal
         IsAlive = true;
         IsHungry = isHungry;
         IsSick = isSick;
+    }
+
+    public void Feed(decimal kgProvided)
+    {
+        if (!IsAlive)
+            return;
+
+        if (kgProvided >= Profile.DailyFoodKg)
+        {
+            HungerDebtDays = 0;
+            IsHungry = false;
+            return;
+        }
+
+        HungerDebtDays++;
+        IsHungry = HungerDebtDays >= Profile.DaysBeforeHungry;
+    }
+
+    public void AdvanceOneDay()
+    {
+        if (!IsAlive)
+            return;
+
+        AgeDays++;
+
+        if (AgeDays >= Profile.LifeExpectancyDays)
+            IsAlive = false;
     }
 }
