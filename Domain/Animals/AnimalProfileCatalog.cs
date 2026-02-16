@@ -37,7 +37,7 @@ public static class AnimalProfileCatalog
             null                  
         )
         },
-            {
+        {
         (SpeciesType.Eagle, SexType.Female),
         new AnimalProfile(
             SpeciesType.Eagle, 

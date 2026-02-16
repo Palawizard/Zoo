@@ -1,6 +1,6 @@
 public enum SpeciesType
 {
-    Coq,
-    Aigle,
-    Tigre
+    Rooster,
+    Eagle,
+    Tiger
 }
