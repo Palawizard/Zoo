@@ -82,7 +82,7 @@ public abstract class Animal
 
     public bool CanReproduceToday()
     {
-        return IsAlive && !IsHungry &&!IsBlockedFromReproductionByArrival();
+        return IsAlive && !IsHungry && !IsBlockedFromReproductionByArrival();
     }
 
     public bool HasReachedSexualMaturity()
@@ -179,9 +179,11 @@ public abstract class Animal
 
     public void RegisterArrivalInZoo()
     {
-        if (HasReachedSexualMaturity()){
+        if (HasReachedSexualMaturity())
+        {
             AdultArrivalReproductionBlockRemainingDays = AdultArrivalReproductionBlockDays;
-        } else
+        }
+        else
         {
             AdultArrivalReproductionBlockRemainingDays = 0;
         }
