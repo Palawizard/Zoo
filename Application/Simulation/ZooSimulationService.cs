@@ -165,11 +165,13 @@ public void TryEggLayingForCurrentMonth()
         }
 }
 
-    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count)
+    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count, decimal? infantMortalityRate)
         {
-            var newborns = new List<ZooAnimal>(count);
+            var survivorCount = ComputeSurvivorsAfterInfantMortality(count, infantMortalityRate);
 
-            for (var i = 0; i<count; i++)
+            var newborns = new List<ZooAnimal>(survivorCount);
+
+            for (var i = 0; i<survivorCount; i++)
             {
                 var sex = Random.Shared.Next(0,2) == 0 ? SexType.Male : SexType.Female;
                 var name = $"{species}_{Guid.NewGuid():N}";
@@ -178,6 +180,39 @@ public void TryEggLayingForCurrentMonth()
             }
             return newborns;
         }
+
+    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count)
+    {
+        return CreateOffspringBatch(species, count, null);
+    }
+
+    private static int ComputeSurvivorsAfterInfantMortality(int newbornCount, decimal? infantMortalityRate)
+    {
+        if (newbornCount <= 0) return 0;
+
+        var rate = NormalizeInfantMortalityRate(infantMortalityRate);
+
+        if (rate <= 0m) return newbornCount;
+        if (rate >= 1m) return 0;
+
+        var survivors = 0;
+
+        for (var i = 0; i < newbornCount; i++)
+        {
+            var roll = (decimal)Random.Shared.NextDouble();
+
+            if (roll >= rate) survivors++;
+        }
+
+        return survivors;
+    }
+
+    private static decimal NormalizeInfantMortalityRate(decimal? infantMortalityRate)
+    {
+        if (!infantMortalityRate.HasValue) return 0m;
+
+        return Math.Clamp(infantMortalityRate.Value, 0m, 1m);
+    }
 
     private static int GetEggCountForMonth(Animal female, int month)
     {
