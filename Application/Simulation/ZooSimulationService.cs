@@ -105,7 +105,7 @@ public void ProcessGestations()
             var bornCount = female.ProgressGestationOneDay();
             if (bornCount <= 0) continue;
 
-            newborns.AddRange(CreateOffspringBatch(female.Species,bornCount));
+            newborns.AddRange(CreateOffspringBatch(female.Species,bornCount,female.Profile.InfantMortalityRate));
         }
 
         if (newborns.Count > 0)
