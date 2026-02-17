@@ -1,4 +1,5 @@
 using Zoo.Domain.Animals;
+using System;
 
 namespace Zoo.Application.Simulation;
 
@@ -10,6 +11,8 @@ public sealed class ZooSimulationService
 
     public decimal MeatStockKg { get; private set; }
     public decimal SeedsStockKg { get; private set; }
+
+    public int CurrentMonth {get; private set;} = 1;
 
     public ZooSimulationService(
         IEnumerable<ZooAnimal>? animals = null,
@@ -84,4 +87,114 @@ public sealed class ZooSimulationService
         SeedsStockKg -= seedConsumed;
         return seedConsumed;
     }
+
+    public void SetCurrentMonth(int month)
+    {
+        if (month < 1 || month > 12)
+            throw new ArgumentOutOfRangeException(nameof(month), "Month must be between 1 and 12.");
+
+        CurrentMonth = month;
+    }
+
+public void ProcessGestations()
+{
+    var newborns = new List<ZooAnimal>();
+
+    foreach (var female in _animals.Where(a => a.IsAlive && a.Sex == SexType.Female && a.IsGestating))
+        {
+            var bornCount = female.ProgressGestationOneDay();
+            if (bornCount <= 0) continue;
+
+            newborns.AddRange(CreateOffspringBatch(female.Species,bornCount));
+        }
+
+        if (newborns.Count > 0)
+            _animals.AddRange(newborns);
+}
+
+public void ProcessEggIncubations()
+{
+    var newborns = new List<ZooAnimal>();
+
+    foreach (var female in _animals.Where(a => a.IsAlive && a.Sex == SexType.Female && a.EggIncubationRemainingDays > 0))
+        {
+            var hatchedCount = female.ProgressEggIncubationOneDay();
+            if (hatchedCount <= 0) continue;
+
+            newborns.AddRange(CreateOffspringBatch(female.Species, hatchedCount));
+        }
+
+        if (newborns.Count > 0)
+            _animals.AddRange(newborns);
+}
+
+public void TryStartPregnancies()
+{
+    var aliveBySpecies = _animals
+        .Where(a => a.IsAlive)
+        .GroupBy(a => a.Species);
+
+    foreach (var speciesGroup in aliveBySpecies)
+        {
+            var hasEligibleMale = speciesGroup.Any(a =>
+                a.Sex == SexType.Male &&
+                a.CanReproduceToday() &&
+                a.CanReproduceByAge() &&
+                !a.IsSick);
+
+            if (!hasEligibleMale) continue;
+
+            foreach (var female in speciesGroup.Where(a => a.Sex == SexType.Female))
+            {
+                if (female.CanStartGestationToday())
+                    female.StartGestation();
+            }
+        }
+}
+
+public void TryEggLayingForCurrentMonth()
+{
+    foreach (var female in _animals.Where(a => a.IsAlive && a.Sex == SexType.Female))
+        {
+            if (!female.CanLayEggThisMonth(CurrentMonth)) continue;
+
+            var eggsToIncubate = GetEggCountForMonth(female, CurrentMonth);
+            if (eggsToIncubate <= 0) continue;
+
+            female.StartEggIncubation(eggsToIncubate, CurrentMonth);
+        }
+}
+
+    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count)
+        {
+            var newborns = new List<ZooAnimal>(count);
+
+            for (var i = 0; i<count; i++)
+            {
+                var sex = Random.Shared.Next(0,2) == 0 ? SexType.Male : SexType.Female;
+                var name = $"{species}_{Guid.NewGuid():N}";
+                newborns.Add(new ZooAnimal(name, sex, species, ageDays : 0, isHungry: false, isSick: false));
+
+            }
+            return newborns;
+        }
+
+    private static int GetEggCountForMonth(Animal female, int month)
+    {
+        if (female.Profile.EggLayingMonth is int layingMonth &&
+            layingMonth == month &&
+            female.Profile.LitterSize is int litterSize &&
+            litterSize > 0)
+        {
+            return litterSize;
+        }
+
+        if (female.Profile.EggsPerYear is int eggsPerYear && eggsPerYear > 0)
+        {
+            return Math.Max(1, (int)Math.Round(eggsPerYear / 12.0, MidpointRounding.AwayFromZero));
+        }
+        
+        return 0;
+    }
+
 }
