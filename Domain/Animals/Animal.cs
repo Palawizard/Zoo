@@ -19,6 +19,7 @@ public abstract class Animal
     public int PendingEggs {get; protected set;}
     public int EggIncubationRemainingDays {get; protected set;}
     private const int AdultArrivalReproductionBlockDays = 30;
+    private const decimal GestatingFemaleFoodMultiplier = 2m;
     public int AdultArrivalReproductionBlockRemainingDays {get; private set;}
 
 
@@ -47,7 +48,9 @@ public abstract class Animal
         if (kgProvided < 0m)
             throw new ArgumentOutOfRangeException(nameof(kgProvided), "Food amount cannot be negative.");
 
-        if (kgProvided >= Profile.DailyFoodKg)
+        var requiredKg = GetDailyFoodNeedKg();
+
+        if (kgProvided >= requiredKg)
         {
             HungerDebtDays = 0;
             IsHungry = false;
@@ -72,6 +75,7 @@ public abstract class Animal
 
     public decimal GetDailyFoodNeedKg()
     {
+        if (Sex == SexType.Female && IsGestating) return Profile.DailyFoodKg * GestatingFemaleFoodMultiplier;
         return Profile.DailyFoodKg;
     }
 
@@ -198,6 +202,13 @@ public abstract class Animal
     public bool IsBlockedFromReproductionByArrival()
     {
         return AdultArrivalReproductionBlockRemainingDays > 0;
+    }
+
+    public bool IsExposedToPublic()
+    {
+        if (IsGestating) return false;
+        if (!IsAlive) return false;
+        return true;
     }
 
 }

@@ -234,4 +234,11 @@ public void TryEggLayingForCurrentMonth()
         return 0;
     }
 
+    public IReadOnlyList<ZooAnimal> GetAnimalsExposedToPublic()
+    {
+        return _animals
+            .Where(a => a.IsExposedToPublic())
+            .ToList();
+    }
+
 }
