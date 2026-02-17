@@ -121,7 +121,7 @@ public void ProcessEggIncubations()
             var hatchedCount = female.ProgressEggIncubationOneDay();
             if (hatchedCount <= 0) continue;
 
-            newborns.AddRange(CreateOffspringBatch(female.Species, hatchedCount));
+            newborns.AddRange(CreateOffspringBatch(female.Species, hatchedCount, female.Profile.InfantMortalityRate));
         }
 
         if (newborns.Count > 0)
@@ -180,11 +180,6 @@ public void TryEggLayingForCurrentMonth()
             }
             return newborns;
         }
-
-    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count)
-    {
-        return CreateOffspringBatch(species, count, null);
-    }
 
     private static int ComputeSurvivorsAfterInfantMortality(int newbornCount, decimal? infantMortalityRate)
     {
