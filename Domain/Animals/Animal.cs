@@ -2,7 +2,6 @@ namespace Zoo.Domain.Animals;
 
 public abstract class Animal
 {
-    // identity
     public Guid Id { get; } = Guid.NewGuid();
     public string Name { get; protected set; }
     public SexType Sex { get; }
@@ -12,10 +11,8 @@ public abstract class Animal
 
     public int AgeDays { get; protected set; }
     public bool IsAlive { get; protected set; }
-    // 
     public bool IsHungry { get; protected set; }
     public bool IsSick { get; protected set; }
-
     public int HungerDebtDays { get; private set; }
 
 
@@ -29,12 +26,16 @@ public abstract class Animal
         IsAlive = true;
         IsHungry = isHungry;
         IsSick = isSick;
+        HungerDebtDays = isHungry ? Profile.DaysBeforeHungry : 0;
     }
 
     public void Feed(decimal kgProvided)
     {
         if (!IsAlive)
             return;
+
+        if (kgProvided < 0m)
+            throw new ArgumentOutOfRangeException(nameof(kgProvided), "Food amount cannot be negative.");
 
         if (kgProvided >= Profile.DailyFoodKg)
         {
@@ -56,5 +57,20 @@ public abstract class Animal
 
         if (AgeDays >= Profile.LifeExpectancyDays)
             IsAlive = false;
+    }
+
+    public decimal GetDailyFoodNeedKg()
+    {
+        return Profile.DailyFoodKg;
+    }
+
+    public void ApplyDailyFeeding(decimal kgProvided)
+    {
+        Feed(kgProvided);
+    }
+
+    public bool CanReproduceToday()
+    {
+        return IsAlive && !IsHungry;
     }
 }
