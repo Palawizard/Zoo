@@ -28,12 +28,18 @@ public sealed class ZooSimulationService
         SeedsStockKg = seedsStockKg;
 
         if (animals is not null)
-            _animals.AddRange(animals);
+        {
+            foreach(var animal in animals)
+            {
+                AddAnimal(animal);
+            }
+        }
     }
 
     public void AddAnimal(ZooAnimal animal)
     {
         ArgumentNullException.ThrowIfNull(animal);
+        animal.RegisterArrivalInZoo();
         _animals.Add(animal);
     }
 
@@ -55,6 +61,7 @@ public sealed class ZooSimulationService
             var requiredKg = animal.GetDailyFoodNeedKg();
             var providedKg = ConsumeFromStock(animal.Profile.FoodType, requiredKg);
             animal.ApplyDailyFeeding(providedKg);
+            animal.AdvanceOneDay();
         }
     }
 
