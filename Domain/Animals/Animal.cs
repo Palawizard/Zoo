@@ -18,6 +18,8 @@ public abstract class Animal
     public int GestationRemainingDays {get; protected set;}
     public int PendingEggs {get; protected set;}
     public int EggIncubationRemainingDays {get; protected set;}
+    private const int AdultArrivalReproductionBlockDays = 30;
+    public int AdultArrivalReproductionBlockRemainingDays {get; private set;}
 
 
     protected Animal(string name, SexType sex, SpeciesType species, int ageDays, bool isHungry, bool isSick)
@@ -62,6 +64,7 @@ public abstract class Animal
             return;
 
         AgeDays++;
+        ProgressArrivalReproductionBlockOneDay();
 
         if (AgeDays >= Profile.LifeExpectancyDays)
             IsAlive = false;
@@ -79,7 +82,7 @@ public abstract class Animal
 
     public bool CanReproduceToday()
     {
-        return IsAlive && !IsHungry;
+        return IsAlive && !IsHungry &&!IsBlockedFromReproductionByArrival();
     }
 
     public bool HasReachedSexualMaturity()
@@ -99,7 +102,7 @@ public abstract class Animal
 
     public bool CanStartGestationToday()
     {
-        return Sex == SexType.Female && IsAlive && !IsHungry && !IsSick && CanReproduceByAge() && !IsGestating && Profile.GestationDays is > 0;
+        return Sex == SexType.Female && IsAlive && !IsHungry && !IsSick && CanReproduceByAge() && !IsGestating && Profile.GestationDays is > 0 && !IsBlockedFromReproductionByArrival();
     }
 
     public void StartGestation()
@@ -133,7 +136,8 @@ public abstract class Animal
             && IsAlive
             && !IsHungry
             && !IsSick
-            && CanReproduceByAge();
+            && CanReproduceByAge()
+            && !IsBlockedFromReproductionByArrival();
 
         if (!canLay)
             return false;
@@ -172,4 +176,26 @@ public abstract class Animal
         EggIncubationRemainingDays = 0;
         return hatched;
     }
+
+    public void RegisterArrivalInZoo()
+    {
+        if (HasReachedSexualMaturity()){
+            AdultArrivalReproductionBlockRemainingDays = AdultArrivalReproductionBlockDays;
+        } else
+        {
+            AdultArrivalReproductionBlockRemainingDays = 0;
+        }
+    }
+
+    public void ProgressArrivalReproductionBlockOneDay()
+    {
+        if (AdultArrivalReproductionBlockRemainingDays == 0) return;
+        AdultArrivalReproductionBlockRemainingDays--;
+    }
+
+    public bool IsBlockedFromReproductionByArrival()
+    {
+        return AdultArrivalReproductionBlockRemainingDays > 0;
+    }
+
 }
