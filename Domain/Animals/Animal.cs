@@ -39,6 +39,12 @@ public abstract class Animal
         PendingEggs = 0;
         EggIncubationRemainingDays = 0;
     }
+    //add property
+    public HealthStatus Health { get; private set; } = HealthStatus.Healthy;
+
+    public void MakeSick() => Health = HealthStatus.Sick;
+    public void Kill()     => Health = HealthStatus.Dead;
+    public void Heal()     => Health = HealthStatus.Healthy;
 
     public void Feed(decimal kgProvided)
     {
@@ -210,5 +216,4 @@ public abstract class Animal
         if (!IsAlive) return false;
         return true;
     }
-
 }

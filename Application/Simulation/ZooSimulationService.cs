@@ -1,5 +1,7 @@
 using Zoo.Domain.Animals;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Zoo.Application.Simulation;
 
