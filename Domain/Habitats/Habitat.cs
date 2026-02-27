@@ -33,7 +33,8 @@ public class Habitat
 
     ///Collection des animaux présents dans l'habitat.
     public List<Animal> Animals { get; }
-
+    // 
+public bool CanReproduce() => Animals.Count >= 2 && AvailableSlots >= 1;
     /// Constructeur protégé : initialise l'habitat pour une espèce donnée.
     protected Habitat(SpeciesType species)
     {
@@ -99,4 +100,5 @@ public class Habitat
     public decimal HealthRatio =>
         Animals.Count == 0 ? 1m
         : (decimal)Animals.Count(a => a.Health == HealthStatus.Healthy) / Animals.Count;
+
 }
