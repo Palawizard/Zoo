@@ -4,37 +4,54 @@ using System.Linq;
 using Zoo.Domain.Animals;
 
 namespace Zoo.Domain.Habitats;
+
 /// Représente un habitat dédié à une espèce particulière et contenant des animaux.
 public class Habitat
 {
-    ///Identifiant unique de l'habitat.
+    /// Identifiant unique de l'habitat.
     public Guid Id { get; } = Guid.NewGuid();
 
     /// Profil de l'habitat (prix, capacité, etc.)
     public HabitatProfile Profile { get; }
 
-    ///Espèce supportée par cet habitat.
+    /// Espèce supportée par cet habitat.
     public SpeciesType Species { get; }
 
     /// Prix d'achat de l'habitat.
     public decimal BuyPrice { get; }
 
-    /// Prix de revente de l'habitat
+    /// Prix de revente de l'habitat.
     public decimal SellPrice { get; }
 
-    ///Capacité maximale en nombre d'animaux
+    /// Capacité maximale en nombre d'animaux.
     public int Capacity { get; }
 
-    ///Nombre d'animaux susceptibles d'être perdus chaque mois.
+    /// Nombre d'animaux susceptibles d'être perdus chaque mois.
     public int MonthlyLossCount { get; }
 
-    ///Probabilité de perte par tirage pour chaque événement.
+    /// Probabilité de perte par tirage pour chaque événement.
     public decimal LossProbability { get; }
 
-    ///Collection des animaux présents dans l'habitat.
+    /// Collection des animaux présents dans l'habitat.
     public List<Animal> Animals { get; }
-    // 
-public bool CanReproduce() => Animals.Count >= 2 && AvailableSlots >= 1;
+
+    /// Nombre de places disponibles.
+    public int AvailableSlots => Capacity - Animals.Count;
+
+    /// Indique si l'habitat est plein.
+    public bool IsFull => Animals.Count >= Capacity;
+
+    /// Indique si l'habitat est vide.
+    public bool IsEmpty => Animals.Count == 0;
+
+    /// Ratio d'animaux en bonne santé (0..1).
+    public decimal HealthRatio =>
+        Animals.Count == 0 ? 1m
+        : (decimal)Animals.Count(a => a.Health == HealthStatus.Healthy) / Animals.Count;
+
+    /// Vérifie si la reproduction est possible (2 animaux min + 1 place libre).
+    public bool CanReproduce() => Animals.Count >= 2 && AvailableSlots >= 1;
+
     /// Constructeur protégé : initialise l'habitat pour une espèce donnée.
     protected Habitat(SpeciesType species)
     {
@@ -52,10 +69,12 @@ public bool CanReproduce() => Animals.Count >= 2 && AvailableSlots >= 1;
     public void AddAnimal(Animal animal)
     {
         if (animal.Species != Species)
-            throw new InvalidOperationException($"Cannot add animal of species {animal.Species} to habitat for species {Species}.");
+            throw new InvalidOperationException(
+                $"Cannot add animal of species {animal.Species} to habitat for species {Species}.");
 
         if (Animals.Count >= Capacity)
-            throw new InvalidOperationException($"Habitat for species {Species} is at full capacity.");
+            throw new InvalidOperationException(
+                $"Habitat for species {Species} is at full capacity.");
 
         Animals.Add(animal);
     }
@@ -65,17 +84,17 @@ public bool CanReproduce() => Animals.Count >= 2 && AvailableSlots >= 1;
     {
         Animals.Remove(animal);
     }
-    /// Simule les pertes d'animaux sur un mois et retourne la liste des animaux perdus.
+
+    /// Simule les événements mensuels : pertes naturelles puis surpopulation.
     public IReadOnlyList<Animal> ProcessMonth(Random random)
     {
         var lost = new List<Animal>();
 
+        // ── 1. Pertes naturelles ──────────────────────────────────
         for (int i = 0; i < MonthlyLossCount; i++)
         {
-            // sélectionne les animaux vivants
-            var candidates = Animals.Where(a => a.Health != HealthStatus.Dead).ToList();
-            if (candidates.Count == 0)
-                break;
+            var candidates = Animals.Where(a => a.IsAlive).ToList();
+            if (candidates.Count == 0) break;
 
             if (random.NextDouble() < (double)LossProbability)
             {
@@ -86,19 +105,40 @@ public bool CanReproduce() => Animals.Count >= 2 && AvailableSlots >= 1;
             }
         }
 
+        // ── 2. Surpopulation ─────────────────────────────────────
+        lost.AddRange(ProcessOverpopulation(random));
+
         return lost;
     }
-    public int AvailableSlots  => Capacity - Animals.Count;
-    public bool IsFull         => Animals.Count >= Capacity;
-    public bool IsEmpty        => Animals.Count == 0;
+
+    /// Pour chaque animal en excès de capacité, 50% de chance qu'il meure.
+    private IReadOnlyList<Animal> ProcessOverpopulation(Random random)
+    {
+        var lost = new List<Animal>();
+        const double OverpopulationDeathChance = 0.5;
+
+        while (Animals.Count > Capacity)
+        {
+            var excess = Animals.Where(a => a.IsAlive).ToList();
+            if (excess.Count == 0) break;
+
+            var victim = excess[random.Next(excess.Count)];
+
+            if (random.NextDouble() < OverpopulationDeathChance)
+            {
+                victim.Kill();
+                Animals.Remove(victim);
+                lost.Add(victim);
+            }
+            else
+            {
+                break; // Survie ce mois, on retente le mois suivant
+            }
+        }
+
+        return lost;
+    }
 
     public override string ToString() =>
-        $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | " +
-        $"Animaux: {Animals.Count}/{Capacity}";
-
-    ///Ratio d'animaux en bonne santé
-    public decimal HealthRatio =>
-        Animals.Count == 0 ? 1m
-        : (decimal)Animals.Count(a => a.Health == HealthStatus.Healthy) / Animals.Count;
-
+        $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | Animaux: {Animals.Count}/{Capacity}";
 }
