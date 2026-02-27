@@ -87,29 +87,32 @@ public class Habitat
 
     /// Simule les événements mensuels : pertes naturelles puis surpopulation.
     public IReadOnlyList<Animal> ProcessMonth(Random random)
+{
+    var lost = new List<Animal>();
+
+    //new maladies
+    ProcessSickness(random); // les animaux malades bloquent la reproduction
+
+    //perte naturelle
+    for (int i = 0; i < MonthlyLossCount; i++)
     {
-        var lost = new List<Animal>();
+        var candidates = Animals.Where(a => a.IsAlive).ToList();
+        if (candidates.Count == 0) break;
 
-        // ── 1. Pertes naturelles ──────────────────────────────────
-        for (int i = 0; i < MonthlyLossCount; i++)
+        if (random.NextDouble() < (double)LossProbability)
         {
-            var candidates = Animals.Where(a => a.IsAlive).ToList();
-            if (candidates.Count == 0) break;
-
-            if (random.NextDouble() < (double)LossProbability)
-            {
-                var victim = candidates[random.Next(candidates.Count)];
-                victim.Kill();
-                Animals.Remove(victim);
-                lost.Add(victim);
-            }
+            var victim = candidates[random.Next(candidates.Count)];
+            victim.Kill();
+            Animals.Remove(victim);
+            lost.Add(victim);
         }
-
-        // ── 2. Surpopulation ─────────────────────────────────────
-        lost.AddRange(ProcessOverpopulation(random));
-
-        return lost;
     }
+
+    //surpopulation
+    lost.AddRange(ProcessOverpopulation(random));
+
+    return lost;
+}
 
     /// Pour chaque animal en excès de capacité, 50% de chance qu'il meure.
     private IReadOnlyList<Animal> ProcessOverpopulation(Random random)
@@ -141,4 +144,17 @@ public class Habitat
 
     public override string ToString() =>
         $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | Animaux: {Animals.Count}/{Capacity}";
+    
+    /// Tire aléatoirement les nouvelles maladies ce mois (proba annuelle → mensuelle).
+    private void ProcessSickness(Random random)
+    {
+        double monthlyChance = 1.0 - Math.Pow(1.0 - (double)LossProbability, 1.0 / 12.0);
+
+        foreach (var animal in Animals.Where(a => a.IsAlive && !a.IsSick))
+        {
+            if (random.NextDouble() < monthlyChance)
+                animal.ContractSickness(random);
+        }
+    }
+
 }

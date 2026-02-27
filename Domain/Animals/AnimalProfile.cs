@@ -13,5 +13,6 @@ public sealed record AnimalProfile(
     int? LitterSize,
     int? MinMonthsBetweenLitters,
     int? EggsPerYear,
-    int? EggLayingMonth
+    int? EggLayingMonth,
+    int SicknessDurationDays
 );
