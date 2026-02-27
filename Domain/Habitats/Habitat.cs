@@ -4,42 +4,37 @@ using System.Linq;
 using Zoo.Domain.Animals;
 
 namespace Zoo.Domain.Habitats;
-
-/// <summary>
 /// Représente un habitat dédié à une espèce particulière et contenant des animaux.
-/// </summary>
 public class Habitat
 {
-    /// <summary>Identifiant unique de l'habitat.</summary>
+    ///Identifiant unique de l'habitat.
     public Guid Id { get; } = Guid.NewGuid();
 
-    /// <summary>Profil de l'habitat (prix, capacité, etc.).</summary>
+    /// Profil de l'habitat (prix, capacité, etc.)
     public HabitatProfile Profile { get; }
 
-    /// <summary>Espèce supportée par cet habitat.</summary>
+    ///Espèce supportée par cet habitat.
     public SpeciesType Species { get; }
 
-    /// <summary>Prix d'achat de l'habitat.</summary>
+    /// Prix d'achat de l'habitat.
     public decimal BuyPrice { get; }
 
-    /// <summary>Prix de revente de l'habitat.</summary>
+    /// Prix de revente de l'habitat
     public decimal SellPrice { get; }
 
-    /// <summary>Capacité maximale en nombre d'animaux.</summary>
+    ///Capacité maximale en nombre d'animaux
     public int Capacity { get; }
 
-    /// <summary>Nombre d'animaux susceptibles d'être perdus chaque mois.</summary>
+    ///Nombre d'animaux susceptibles d'être perdus chaque mois.
     public int MonthlyLossCount { get; }
 
-    /// <summary>Probabilité de perte par tirage pour chaque événement.</summary>
+    ///Probabilité de perte par tirage pour chaque événement.
     public decimal LossProbability { get; }
 
-    /// <summary>Collection des animaux présents dans l'habitat.</summary>
+    ///Collection des animaux présents dans l'habitat.
     public List<Animal> Animals { get; }
 
-    /// <summary>
     /// Constructeur protégé : initialise l'habitat pour une espèce donnée.
-    /// </summary>
     protected Habitat(SpeciesType species)
     {
         Profile = HabitatProfileCatalog.Get(species);
@@ -52,10 +47,7 @@ public class Habitat
         Animals = new List<Animal>();
     }
 
-    /// <summary>
     /// Ajoute un animal à l'habitat si l'espèce correspond et s'il y a de la place.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Si l'espèce ne correspond pas ou si l'habitat est plein.</exception>
     public void AddAnimal(Animal animal)
     {
         if (animal.Species != Species)
@@ -67,17 +59,12 @@ public class Habitat
         Animals.Add(animal);
     }
 
-    /// <summary>
     /// Retire un animal de l'habitat.
-    /// </summary>
     public void RemoveAnimal(Animal animal)
     {
         Animals.Remove(animal);
     }
-
-    /// <summary>
     /// Simule les pertes d'animaux sur un mois et retourne la liste des animaux perdus.
-    /// </summary>
     public IReadOnlyList<Animal> ProcessMonth(Random random)
     {
         var lost = new List<Animal>();
@@ -100,17 +87,15 @@ public class Habitat
 
         return lost;
     }
+    public int AvailableSlots  => Capacity - Animals.Count;
+    public bool IsFull         => Animals.Count >= Capacity;
+    public bool IsEmpty        => Animals.Count == 0;
 
-    /// <summary>Nombre de places disponibles.</summary>
-    public int AvailableSlots => Capacity - Animals.Count;
+    public override string ToString() =>
+        $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | " +
+        $"Animaux: {Animals.Count}/{Capacity}";
 
-    /// <summary>Indique si l'habitat est plein.</summary>
-    public bool IsFull => Animals.Count >= Capacity;
-
-    /// <summary>Indique si l'habitat est vide.</summary>
-    public bool IsEmpty => Animals.Count == 0;
-
-    /// <summary>Ratio d'animaux en bonne santé (0..1).</summary>
+    ///Ratio d'animaux en bonne santé
     public decimal HealthRatio =>
         Animals.Count == 0 ? 1m
         : (decimal)Animals.Count(a => a.Health == HealthStatus.Healthy) / Animals.Count;
