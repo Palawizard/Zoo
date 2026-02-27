@@ -1,3 +1,5 @@
+namespace Zoo.Domain.Habitats;
+
 public sealed record HabitatProfile(
     SpeciesType Species,
     decimal BuyPrice,
