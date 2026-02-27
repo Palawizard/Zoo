@@ -63,7 +63,7 @@ public sealed class ZooSimulationService
             var requiredKg = animal.GetDailyFoodNeedKg();
             var providedKg = ConsumeFromStock(animal.Profile.FoodType, requiredKg);
             animal.ApplyDailyFeeding(providedKg);
-            animal.AdvanceOneDay();
+            animal.AdvanceOneDay(Random.Shared);
         }
     }
 
