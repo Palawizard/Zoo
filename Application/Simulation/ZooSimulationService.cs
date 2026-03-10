@@ -293,5 +293,4 @@ public void TryEggLayingForCurrentMonth()
         Ledger.Add(new Transaction(DateTime.UtcNow, -amount, description, category, Cash));
         return true;
     }
-
 }
