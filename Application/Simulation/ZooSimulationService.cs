@@ -30,7 +30,7 @@ public sealed class ZooSimulationService
         IEnumerable<ZooAnimal>? animals = null,
         decimal meatStockKg = 0m,
         decimal seedsStockKg = 0m,
-        decimal cash = 0m,
+        decimal cash = 80000m,
         VisitorPricing? visitorPricing = null)
     {
         if (meatStockKg < 0m)
@@ -70,7 +70,7 @@ public sealed class ZooSimulationService
         ArgumentNullException.ThrowIfNull(animal);
 
         var cost = _animalMarket.BuyAnimalPrice(animal.Species, animal.AgeDays);
-        if (!_state.SpendCash(cost)) return false;
+        if (!_state.SpendCash(cost, $"Buy animal: {animal.Species}", "Animal")) return false;
 
         AddAnimal(animal);
         return true;
@@ -83,7 +83,7 @@ public sealed class ZooSimulationService
 
         _state.RemoveAnimal(animal);
         var revenue = _animalMarket.SellAnimalPrice(animal.Species, animal.AgeDays);
-        _state.AddCash(revenue);
+        _state.AddCash(revenue, $"Sell animal: {animal.Species}", "Animal");
         return true;
     }
 
@@ -98,7 +98,7 @@ public sealed class ZooSimulationService
             throw new ArgumentOutOfRangeException(nameof(kg), "Food amount cannot be negative.");
 
         var cost = _foodMarket.Buy(type, kg);
-        if (!_state.SpendCash(cost)) return false;
+        if (!_state.SpendCash(cost, $"Buy food: {type} {kg}kg", "Food")) return false;
 
         _state.FoodStock.Add(type, kg);
         return true;
@@ -227,7 +227,7 @@ public void TryEggLayingForCurrentMonth()
         _state.VisitorStats.ExposedAnimalsCount = GetAnimalsExposedToPublic().Count;
         _state.VisitorStats.ComputeVisitors();
         var revenue = _state.VisitorStats.ComputeRevenue(_visitorPricing);
-        _state.AddCash(revenue);
+        _state.AddCash(revenue, "Visitor revenue", "Visitors");
         return revenue;
     }
 
