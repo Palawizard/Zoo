@@ -30,6 +30,8 @@ public abstract class Animal
     public void MakeSick() => Health = HealthStatus.Sick;
     public void Kill() => Health = HealthStatus.Dead;
     public void Heal() => Health = HealthStatus.Healthy;
+    
+    private const decimal DiseaseDeathProbability = 0.10m;
 
     protected Animal(string name, SexType sex, SpeciesType species, int ageDays, bool isHungry, bool isSick)
     {
@@ -276,6 +278,14 @@ public abstract class Animal
             return;
 
         DiseaseRemainingDays = 0;
+        
+        var roll = (decimal)Random.Shared.NextDouble();
+        if (roll < DiseaseDeathProbability)
+        {
+            Kill();
+            return;
+        }
+        
         Heal();
     }
 

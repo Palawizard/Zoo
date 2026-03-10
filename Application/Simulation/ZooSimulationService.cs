@@ -149,8 +149,7 @@ public void TryStartPregnancies()
             var hasEligibleMale = speciesGroup.Any(a =>
                 a.Sex == SexType.Male &&
                 a.CanReproduceToday() &&
-                a.CanReproduceByAge() &&
-                !a.IsSick);
+                a.CanReproduceByAge());
 
             if (!hasEligibleMale) continue;
 
