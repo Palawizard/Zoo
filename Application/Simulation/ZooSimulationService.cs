@@ -1,7 +1,8 @@
-using Zoo.Domain.Animals;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Zoo.Domain.Animals;
+using Zoo.Domain.Finance;
 
 namespace Zoo.Application.Simulation;
 
@@ -13,21 +14,28 @@ public sealed class ZooSimulationService
 
     public decimal MeatStockKg { get; private set; }
     public decimal SeedsStockKg { get; private set; }
+    public decimal Cash { get; private set; }
+    public Ledger Ledger { get; } = new();
 
     public int CurrentMonth {get; private set;} = 1;
 
     public ZooSimulationService(
         IEnumerable<ZooAnimal>? animals = null,
         decimal meatStockKg = 0m,
-        decimal seedsStockKg = 0m)
+        decimal seedsStockKg = 0m,
+        decimal cash = 80000m)
     {
         if (meatStockKg < 0m)
             throw new ArgumentOutOfRangeException(nameof(meatStockKg), "Stock cannot be negative.");
         if (seedsStockKg < 0m)
             throw new ArgumentOutOfRangeException(nameof(seedsStockKg), "Stock cannot be negative.");
+        if (cash < 0m)
+            throw new ArgumentOutOfRangeException(nameof(cash), "Cash cannot be negative.");
 
         MeatStockKg = meatStockKg;
         SeedsStockKg = seedsStockKg;
+        Cash = cash;
+        Ledger.Add(new Transaction(DateTime.UtcNow, cash, "Initial zoo budget", "Init", Cash));
 
         if (animals is not null)
         {
@@ -241,6 +249,27 @@ public void TryEggLayingForCurrentMonth()
         return _animals
             .Where(a => a.IsExposedToPublic())
             .ToList();
+    }
+
+    public void AddCash(decimal amount, string description = "Cash in", string category = "Income")
+    {
+        if (amount < 0m)
+            throw new ArgumentOutOfRangeException(nameof(amount), "Amount cannot be negative.");
+
+        Cash += amount;
+        Ledger.Add(new Transaction(DateTime.UtcNow, amount, description, category, Cash));
+    }
+
+    public bool SpendCash(decimal amount, string description = "Cash out", string category = "Expense")
+    {
+        if (amount < 0m)
+            throw new ArgumentOutOfRangeException(nameof(amount), "Amount cannot be negative.");
+
+        if (Cash < amount) return false;
+
+        Cash -= amount;
+        Ledger.Add(new Transaction(DateTime.UtcNow, -amount, description, category, Cash));
+        return true;
     }
 
 }
