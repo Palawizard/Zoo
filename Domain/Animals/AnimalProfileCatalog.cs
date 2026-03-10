@@ -19,7 +19,8 @@ public static class AnimalProfileCatalog
                 null,
                 null,
                 null,
-                null)
+                null,
+                14)
         },
         {
             (SpeciesType.Tiger, SexType.Female),
@@ -38,7 +39,8 @@ public static class AnimalProfileCatalog
                 3,
                 20,
                 null,
-                null)
+                null,
+                14)
         },
         {
             (SpeciesType.Eagle, SexType.Male),
@@ -57,7 +59,8 @@ public static class AnimalProfileCatalog
                 null,
                 null,
                 null,
-                null)
+                null,
+                10)
         },
         {
             (SpeciesType.Eagle, SexType.Female),
@@ -76,7 +79,8 @@ public static class AnimalProfileCatalog
                 2,
                 null,
                 2,
-                3)
+                3,
+                10)
         },
         {
             (SpeciesType.Rooster, SexType.Female),
@@ -95,7 +99,8 @@ public static class AnimalProfileCatalog
                 null,
                 null,
                 200,
-                null)
+                null,
+                7)
         },
         {
             (SpeciesType.Rooster, SexType.Male),
@@ -114,7 +119,8 @@ public static class AnimalProfileCatalog
                 null,
                 null,
                 null,
-                null)
+                null,
+                7)
         }
     };
 

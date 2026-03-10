@@ -29,7 +29,7 @@ public abstract class Animal
     private const decimal SicknessDeathChance = 0.10m;
     private const decimal SicknessDurationVariance = 0.20m;
 
-    // ✅ Système de santé unifié
+    //Système de santé unifié
     public HealthStatus Health { get; private set; } = HealthStatus.Healthy;
     public bool IsAlive => Health != HealthStatus.Dead;
     public bool IsSick  => Health == HealthStatus.Sick;

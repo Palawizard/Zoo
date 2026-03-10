@@ -1,33 +1,52 @@
-using Zoo.Domain.Animals;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Zoo.Domain;
+using Zoo.Domain.Animals;
+using Zoo.Domain.Feeding;
+using Zoo.Domain.Finance;
+using Zoo.Domain.Visitors;
 
 namespace Zoo.Application.Simulation;
 
 public sealed class ZooSimulationService
 {
     private readonly List<ZooAnimal> _animals = new();
+    private readonly ZooState _state;
+    private readonly FoodMarket _foodMarket = new();
+    private readonly AnimalMarket _animalMarket = new();
+    private readonly SubsidyPolicy _subsidyPolicy = new();
+    private readonly VisitorPricing _visitorPricing;
 
     public IReadOnlyList<ZooAnimal> Animals => _animals;
 
-    public decimal MeatStockKg { get; private set; }
-    public decimal SeedsStockKg { get; private set; }
+    public decimal MeatStockKg => _state.FoodStock.MeatKg;
+    public decimal SeedsStockKg => _state.FoodStock.SeedsKg;
+    public decimal Cash => _state.Cash;
 
     public int CurrentMonth {get; private set;} = 1;
 
     public ZooSimulationService(
         IEnumerable<ZooAnimal>? animals = null,
         decimal meatStockKg = 0m,
-        decimal seedsStockKg = 0m)
+        decimal seedsStockKg = 0m,
+        decimal cash = 0m,
+        VisitorPricing? visitorPricing = null)
     {
         if (meatStockKg < 0m)
             throw new ArgumentOutOfRangeException(nameof(meatStockKg), "Stock cannot be negative.");
         if (seedsStockKg < 0m)
             throw new ArgumentOutOfRangeException(nameof(seedsStockKg), "Stock cannot be negative.");
+        if (cash < 0m)
+            throw new ArgumentOutOfRangeException(nameof(cash), "Cash cannot be negative.");
 
-        MeatStockKg = meatStockKg;
-        SeedsStockKg = seedsStockKg;
+        _state = new ZooState(
+            animals: Enumerable.Empty<ZooAnimal>(),
+            foodStock: new FoodStock(meatStockKg, seedsStockKg),
+            visitorStats: new VisitorStats(),
+            cash: cash);
+
+        _visitorPricing = visitorPricing ?? new VisitorPricing(15m, 8m);
 
         if (animals is not null)
         {
@@ -43,17 +62,46 @@ public sealed class ZooSimulationService
         ArgumentNullException.ThrowIfNull(animal);
         animal.RegisterArrivalInZoo();
         _animals.Add(animal);
+        _state.AddAnimal(animal);
+    }
+
+    public bool BuyAnimal(ZooAnimal animal)
+    {
+        ArgumentNullException.ThrowIfNull(animal);
+
+        var cost = _animalMarket.BuyAnimalPrice(animal.Species, animal.AgeDays);
+        if (!_state.SpendCash(cost)) return false;
+
+        AddAnimal(animal);
+        return true;
+    }
+
+    public bool SellAnimal(ZooAnimal animal)
+    {
+        ArgumentNullException.ThrowIfNull(animal);
+        if (!_animals.Remove(animal)) return false;
+
+        _state.RemoveAnimal(animal);
+        var revenue = _animalMarket.SellAnimalPrice(animal.Species, animal.AgeDays);
+        _state.AddCash(revenue);
+        return true;
     }
 
     public void AddFood(FoodType type, decimal kg)
     {
+        _state.FoodStock.Add(type, kg);
+    }
+
+    public bool BuyFood(FoodType type, decimal kg)
+    {
         if (kg < 0m)
             throw new ArgumentOutOfRangeException(nameof(kg), "Food amount cannot be negative.");
 
-        if (type == FoodType.Meat)
-            MeatStockKg += kg;
-        else
-            SeedsStockKg += kg;
+        var cost = _foodMarket.Buy(type, kg);
+        if (!_state.SpendCash(cost)) return false;
+
+        _state.FoodStock.Add(type, kg);
+        return true;
     }
 
     public void ProcessDailyFeeding()
@@ -87,13 +135,13 @@ public sealed class ZooSimulationService
 
         if (type == FoodType.Meat)
         {
-            var consumed = Math.Min(MeatStockKg, requestedKg);
-            MeatStockKg -= consumed;
+            var consumed = Math.Min(_state.FoodStock.MeatKg, requestedKg);
+            _state.FoodStock.Consume(type, consumed);
             return consumed;
         }
 
-        var seedConsumed = Math.Min(SeedsStockKg, requestedKg);
-        SeedsStockKg -= seedConsumed;
+        var seedConsumed = Math.Min(_state.FoodStock.SeedsKg, requestedKg);
+        _state.FoodStock.Consume(type, seedConsumed);
         return seedConsumed;
     }
 
@@ -173,6 +221,20 @@ public void TryEggLayingForCurrentMonth()
             female.StartEggIncubation(eggsToIncubate, CurrentMonth);
         }
 }
+
+    public decimal CollectMonthlyVisitorRevenue()
+    {
+        _state.VisitorStats.ExposedAnimalsCount = GetAnimalsExposedToPublic().Count;
+        _state.VisitorStats.ComputeVisitors();
+        var revenue = _state.VisitorStats.ComputeRevenue(_visitorPricing);
+        _state.AddCash(revenue);
+        return revenue;
+    }
+
+    public decimal ApplyAnnualSubsidies()
+    {
+        return _subsidyPolicy.ApplyAnnualSubsidies(_state);
+    }
 
     private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count, decimal? infantMortalityRate)
         {
