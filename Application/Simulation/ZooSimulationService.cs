@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Zoo.Domain.Animals;
 using Zoo.Domain.Finance;
+using Zoo.Domain.Habitats;
 
 namespace Zoo.Application.Simulation;
 
@@ -10,6 +11,9 @@ public sealed class ZooSimulationService
 {
     private readonly List<ZooAnimal> _animals = new();
     private readonly AnimalMarket _animalMarket = new();
+    private readonly List<Habitat> _habitats = new();
+
+    public IReadOnlyList<Habitat> Habitats => _habitats;
 
     public IReadOnlyList<ZooAnimal> Animals => _animals;
 
@@ -72,6 +76,25 @@ public sealed class ZooSimulationService
 
         var revenue = _animalMarket.SellAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
         AddCash(revenue, $"Sell animal: {animal.Species}", "Animal");
+        return true;
+    }
+
+    public bool BuyHabitat(SpeciesType species)
+    {
+        var habitat = HabitatFactory.Create(species);
+
+        if (!SpendCash(habitat.BuyPrice, $"Buy habitat: {species}", "Habitat")) return false;
+
+        _habitats.Add(habitat);
+        return true;
+    }
+
+    public bool SellHabitat(Habitat habitat)
+    {
+        ArgumentNullException.ThrowIfNull(habitat);
+        if (!_habitats.Remove(habitat)) return false;
+
+        AddCash(habitat.SellPrice, $"Sell habitat: {habitat.Species}", "Habitat");
         return true;
     }
 

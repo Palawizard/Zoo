@@ -9,4 +9,8 @@ Console.WriteLine($"Seeds stock (kg): {simulation.SeedsStockKg}");
 Console.WriteLine($"I have {simulation.Cash} $ !"); 
 
 Console.WriteLine("Simulation");
-Console.WriteLine("$Tiger is {simulation.Age6MonthsDays}");
+Console.WriteLine("Buying one tiger habitat...");
+var boughtTigerHabitat = simulation.BuyHabitat(Zoo.Domain.Animals.SpeciesType.Tiger);
+Console.WriteLine($"Habitat bought: {boughtTigerHabitat}");
+Console.WriteLine($"Habitats in zoo: {simulation.Habitats.Count}");
+Console.WriteLine($"Budget after habitat: {simulation.Cash}€");
