@@ -9,6 +9,7 @@ namespace Zoo.Application.Simulation;
 public sealed class ZooSimulationService
 {
     private readonly List<ZooAnimal> _animals = new();
+    private readonly AnimalMarket _animalMarket = new();
 
     public IReadOnlyList<ZooAnimal> Animals => _animals;
 
@@ -51,6 +52,27 @@ public sealed class ZooSimulationService
         ArgumentNullException.ThrowIfNull(animal);
         animal.RegisterArrivalInZoo();
         _animals.Add(animal);
+    }
+
+    public bool BuyAnimal(ZooAnimal animal)
+    {
+        ArgumentNullException.ThrowIfNull(animal);
+
+        var cost = _animalMarket.BuyAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
+        if (!SpendCash(cost, $"Buy animal: {animal.Species}", "Animal")) return false;
+
+        AddAnimal(animal);
+        return true;
+    }
+
+    public bool SellAnimal(ZooAnimal animal)
+    {
+        ArgumentNullException.ThrowIfNull(animal);
+        if (!_animals.Remove(animal)) return false;
+
+        var revenue = _animalMarket.SellAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
+        AddCash(revenue, $"Sell animal: {animal.Species}", "Animal");
+        return true;
     }
 
     public void AddFood(FoodType type, decimal kg)
