@@ -1,4 +1,5 @@
 using Zoo.Application.Simulation;
+using Zoo.Domain.Animals;
 
 var simulation = new ZooSimulationService();
 
@@ -10,7 +11,7 @@ Console.WriteLine($"I have {simulation.Cash} $ !");
 
 Console.WriteLine("Simulation");
 Console.WriteLine("Buying one tiger habitat...");
-var boughtTigerHabitat = simulation.BuyHabitat(Zoo.Domain.Animals.SpeciesType.Tiger);
+var boughtTigerHabitat = simulation.BuyHabitat(SpeciesType.Tiger);
 Console.WriteLine($"Habitat bought: {boughtTigerHabitat}");
 Console.WriteLine($"Habitats in zoo: {simulation.Habitats.Count}");
 Console.WriteLine($"Budget after habitat: {simulation.Cash}€");
