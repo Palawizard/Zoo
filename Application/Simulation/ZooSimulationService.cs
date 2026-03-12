@@ -14,6 +14,7 @@ public sealed class ZooSimulationService
     private readonly AnimalMarket _animalMarket = new();
     private readonly FoodMarket _foodMerchant = new();
     private readonly List<Habitat> _habitats = new();
+    private int _lastStockLossMonth = -1;
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
 
@@ -130,6 +131,28 @@ public sealed class ZooSimulationService
     public (decimal MeatKg, decimal SeedsKg) GetFoodStock()
     {
         return (MeatStockKg, SeedsStockKg);
+    }
+
+    //gere un risque mensuel de perte de stock (nuisibles, viande avariee)
+    public void TryApplyMonthlyStockLoss(int dayOfMonth)
+    {
+        //securise la date du mois (1..28/30/31)
+        var daysInMonth = GetDaysInMonth(CurrentMonth);
+        if (dayOfMonth < 1 || dayOfMonth > daysInMonth)
+            throw new ArgumentOutOfRangeException(nameof(dayOfMonth), $"Day must be between 1 and {daysInMonth}.");
+
+        //on ne lance le tirage qu'une seule fois par mois (le premier jour)
+        if (dayOfMonth != 1 || _lastStockLossMonth == CurrentMonth) return;
+
+        _lastStockLossMonth = CurrentMonth;
+
+        //20% de chance: perte de 10% des graines
+        if (IsEventTriggered(0.20m))
+            SeedsStockKg = ReduceByPercent(SeedsStockKg, 0.10m);
+
+        //10% de chance: perte de 20% de la viande
+        if (IsEventTriggered(0.10m))
+            MeatStockKg = ReduceByPercent(MeatStockKg, 0.20m);
     }
 
     public void ProcessDailyFeeding()
@@ -310,6 +333,46 @@ public void TryEggLayingForCurrentMonth()
         }
         
         return 0;
+    }
+
+    //renvoie le nombre de jours du mois (fevrier = 28)
+    private static int GetDaysInMonth(int month)
+    {
+        return month switch
+        {
+            1 => 31,
+            2 => 28,
+            3 => 31,
+            4 => 30,
+            5 => 31,
+            6 => 30,
+            7 => 31,
+            8 => 31,
+            9 => 30,
+            10 => 31,
+            11 => 30,
+            12 => 31,
+            _ => throw new ArgumentOutOfRangeException(nameof(month), "Month must be between 1 and 12.")
+        };
+    }
+
+    //retire un pourcentage d'une quantite
+    private static decimal ReduceByPercent(decimal value, decimal percent)
+    {
+        if (value <= 0m) return 0m;
+        if (percent <= 0m) return value;
+        if (percent >= 1m) return 0m;
+
+        return value * (1m - percent);
+    }
+
+    //fait un tirage aleatoire simple
+    private static bool IsEventTriggered(decimal probability)
+    {
+        if (probability <= 0m) return false;
+        if (probability >= 1m) return true;
+
+        return (decimal)Random.Shared.NextDouble() < probability;
     }
 
     public IReadOnlyList<ZooAnimal> GetAnimalsExposedToPublic()
