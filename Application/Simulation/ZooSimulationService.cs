@@ -126,6 +126,12 @@ public sealed class ZooSimulationService
             SeedsStockKg += kg;
     }
 
+    //check stock
+    public (decimal MeatKg, decimal SeedsKg) GetFoodStock()
+    {
+        return (MeatStockKg, SeedsStockKg);
+    }
+
     public void ProcessDailyFeeding()
     {
         foreach (var animal in _animals.Where(a => a.IsAlive))
