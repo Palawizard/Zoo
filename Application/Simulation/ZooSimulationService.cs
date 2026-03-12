@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Zoo.Domain.Animals;
+using Zoo.Domain.Feeding;
 using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
 
@@ -11,6 +12,7 @@ public sealed class ZooSimulationService
 {
     private readonly List<ZooAnimal> _animals = new();
     private readonly AnimalMarket _animalMarket = new();
+    private readonly FoodMarket _foodMerchant = new();
     private readonly List<Habitat> _habitats = new();
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
@@ -95,6 +97,21 @@ public sealed class ZooSimulationService
         if (!_habitats.Remove(habitat)) return false;
 
         AddCash(habitat.SellPrice, $"Sell habitat: {habitat.Species}", "Habitat");
+        return true;
+    }
+
+    public bool BuyFood(FoodType type, decimal kg)
+    {
+        if (kg < 0m)
+            throw new ArgumentOutOfRangeException(nameof(kg), "Food amount cannot be negative.");
+        if (kg == 0m) return true;
+
+        var cost = _foodMerchant.Buy(type, kg);
+        var label = type == FoodType.Meat ? "meat" : "seeds";
+
+        if (!SpendCash(cost, $"Buy food: {label} ({kg:0.##} kg)", "Food")) return false;
+
+        AddFood(type, kg);
         return true;
     }
 
@@ -316,4 +333,4 @@ public void TryEggLayingForCurrentMonth()
         Ledger.Add(new Transaction(DateTime.UtcNow, -amount, description, category, Cash));
         return true;
     }
-}
+}   
