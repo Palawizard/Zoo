@@ -5,6 +5,7 @@ using Zoo.Domain.Animals;
 using Zoo.Domain.Feeding;
 using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
+using Zoo.Domain.Visitors;
 
 namespace Zoo.Application.Simulation;
 
@@ -15,9 +16,7 @@ public sealed class ZooSimulationService
     private readonly FoodMarket _foodMerchant = new();
     private readonly List<Habitat> _habitats = new();
     private int _lastStockLossMonth = -1;
-    private const decimal AdultTicketPrice = 17m;
-    private const decimal ChildTicketPrice = 13m;
-    private const decimal VisitorGroupRevenue = (2 * AdultTicketPrice) + (2 * ChildTicketPrice);
+    private readonly VisitorRevenueCalculator _visitorRevenueCalculator = new();
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
 
@@ -162,10 +161,7 @@ public sealed class ZooSimulationService
     public IReadOnlyDictionary<SpeciesType, decimal> CalculateVisitorRevenueBySpecies(bool isHighSeason)
     {
         var exposedAnimals = GetAnimalsExposedToPublic();
-
-        return exposedAnimals.GroupBy(a => a.Species).ToDictionary(
-                g => g.Key,
-                g => g.Count() * GetVisitorsPerAnimal(g.Key, isHighSeason) * VisitorGroupRevenue);
+        return _visitorRevenueCalculator.CalculateBySpecies(exposedAnimals, isHighSeason);
     }
 
     //ajoute l'argent
@@ -363,18 +359,6 @@ public void TryEggLayingForCurrentMonth()
         return 0;
     }
 
-    //donne le nombre moyen de groupes de visiteurs par animal
-    private static decimal GetVisitorsPerAnimal(SpeciesType species, bool isHighSeason)
-    {
-        return species switch
-        {
-            SpeciesType.Tiger => isHighSeason ? 30m : 5m,
-            SpeciesType.Rooster => isHighSeason ? 2m : 0.5m,
-            SpeciesType.Eagle => isHighSeason ? 15m : 7m,
-            _ => 0m
-        };
-    }
-
     //nb jours / mois
     private static int GetDaysInMonth(int month)
     {
@@ -406,7 +390,7 @@ public void TryEggLayingForCurrentMonth()
         return value * (1m - percent);
     }
 
-    //fait un tirage aleatoire simple
+    //fait un tirage aleatoire
     private static bool IsEventTriggered(decimal probability)
     {
         if (probability <= 0m) return false;
