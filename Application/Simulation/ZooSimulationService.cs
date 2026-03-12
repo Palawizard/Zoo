@@ -15,6 +15,9 @@ public sealed class ZooSimulationService
     private readonly FoodMarket _foodMerchant = new();
     private readonly List<Habitat> _habitats = new();
     private int _lastStockLossMonth = -1;
+    private const decimal AdultTicketPrice = 17m;
+    private const decimal ChildTicketPrice = 13m;
+    private const decimal VisitorGroupRevenue = (2 * AdultTicketPrice) + (2 * ChildTicketPrice);
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
 
@@ -133,15 +136,15 @@ public sealed class ZooSimulationService
         return (MeatStockKg, SeedsStockKg);
     }
 
-    //gere un risque mensuel de perte de stock (nuisibles, viande avariee)
+    //Perte du stock
     public void TryApplyMonthlyStockLoss(int dayOfMonth)
     {
-        //securise la date du mois (1..28/30/31)
+        //securise la date du mois
         var daysInMonth = GetDaysInMonth(CurrentMonth);
         if (dayOfMonth < 1 || dayOfMonth > daysInMonth)
             throw new ArgumentOutOfRangeException(nameof(dayOfMonth), $"Day must be between 1 and {daysInMonth}.");
 
-        //on ne lance le tirage qu'une seule fois par mois (le premier jour)
+        //lance le 1er jour
         if (dayOfMonth != 1 || _lastStockLossMonth == CurrentMonth) return;
 
         _lastStockLossMonth = CurrentMonth;
@@ -153,6 +156,31 @@ public sealed class ZooSimulationService
         //10% de chance: perte de 20% de la viande
         if (IsEventTriggered(0.10m))
             MeatStockKg = ReduceByPercent(MeatStockKg, 0.20m);
+    }
+
+    //calcule revenu visiteurs
+    public IReadOnlyDictionary<SpeciesType, decimal> CalculateVisitorRevenueBySpecies(bool isHighSeason)
+    {
+        var exposedAnimals = GetAnimalsExposedToPublic();
+
+        return exposedAnimals.GroupBy(a => a.Species).ToDictionary(
+                g => g.Key,
+                g => g.Count() * GetVisitorsPerAnimal(g.Key, isHighSeason) * VisitorGroupRevenue);
+    }
+
+    //ajoute l'argent
+    public decimal CollectDailyVisitorRevenue(bool isHighSeason)
+    {
+        var revenueBySpecies = CalculateVisitorRevenueBySpecies(isHighSeason);
+        var total = revenueBySpecies.Values.Sum();
+
+        if (total > 0m)
+        {
+            var seasonLabel = isHighSeason ? "high" : "low";
+            AddCash(total, $"Visitors income ({seasonLabel} season)", "Visitors");
+        }
+
+        return total;
     }
 
     public void ProcessDailyFeeding()
@@ -335,7 +363,19 @@ public void TryEggLayingForCurrentMonth()
         return 0;
     }
 
-    //renvoie le nombre de jours du mois (fevrier = 28)
+    //donne le nombre moyen de groupes de visiteurs par animal
+    private static decimal GetVisitorsPerAnimal(SpeciesType species, bool isHighSeason)
+    {
+        return species switch
+        {
+            SpeciesType.Tiger => isHighSeason ? 30m : 5m,
+            SpeciesType.Rooster => isHighSeason ? 2m : 0.5m,
+            SpeciesType.Eagle => isHighSeason ? 15m : 7m,
+            _ => 0m
+        };
+    }
+
+    //nb jours / mois
     private static int GetDaysInMonth(int month)
     {
         return month switch
