@@ -426,4 +426,30 @@ public void TryEggLayingForCurrentMonth()
         Ledger.Add(new Transaction(DateTime.UtcNow, -amount, description, category, Cash));
         return true;
     }
+
+    // subvention
+    public decimal ApplyAnnualSubsidies()
+    {
+        decimal total = 0m;
+
+        // aigle
+        var eagleCount = _animals.Count(a => a.Species == SpeciesType.Eagle);
+        total += eagleCount * 2190m;
+
+        // tigre
+        var tigerCount = _animals.Count(a => a.Species == SpeciesType.Tiger);
+        total += tigerCount * 43800m;
+
+        // check cash dispo
+        if (Cash < total)
+        {
+            Console.WriteLine("We can't give invisible money, thank you for reducing our contract");
+        }
+        else
+        {
+            SpendCash(total, "Annual subsidy", "Subsidy");
+        }
+
+        return total;
+    }
 }   

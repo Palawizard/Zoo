@@ -5,54 +5,54 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Domain.Habitats;
 
-/// Représente un habitat dédié à une espèce particulière et contenant des animaux.
+///Habitat
 public class Habitat
 {
-    /// Identifiant unique de l'habitat.
+    /// id unique de l'habitat.
     public Guid Id { get; } = Guid.NewGuid();
 
-    /// Profil de l'habitat (prix, capacité, etc.)
+    /// Profil de l'habitat
     public HabitatProfile Profile { get; }
 
-    /// Espèce supportée par cet habitat.
+    /// Espèce supportée par habitat.
     public SpeciesType Species { get; }
 
-    /// Prix d'achat de l'habitat.
+    /// Prix d'achat
     public decimal BuyPrice { get; }
 
-    /// Prix de revente de l'habitat.
+    /// Prix de revente
     public decimal SellPrice { get; }
 
-    /// Capacité maximale en nombre d'animaux.
+    /// Capacité maximale
     public int Capacity { get; }
 
-    /// Nombre d'animaux susceptibles d'être perdus chaque mois.
+    /// Nombre d'animaux  pouvant etre perdu
     public int MonthlyLossCount { get; }
 
-    /// Probabilité de perte par tirage pour chaque événement.
+    /// Probabilité de perte par event
     public decimal LossProbability { get; }
 
-    /// Collection des animaux présents dans l'habitat.
+    /// Collection des animaux
     public List<Animal> Animals { get; }
 
-    /// Nombre de places disponibles.
+    /// Nombre de places dispo
     public int AvailableSlots => Capacity - Animals.Count;
 
-    /// Indique si l'habitat est plein.
+    /// habitat plein
     public bool IsFull => Animals.Count >= Capacity;
 
-    /// Indique si l'habitat est vide.
+    /// habiat vide
     public bool IsEmpty => Animals.Count == 0;
 
-    /// Ratio d'animaux en bonne santé (0..1).
+    /// animaux en bonen santé
     public decimal HealthRatio =>
         Animals.Count == 0 ? 1m
         : (decimal)Animals.Count(a => a.Health == HealthStatus.Healthy) / Animals.Count;
 
-    /// Vérifie si la reproduction est possible (2 animaux min + 1 place libre).
+    /// check si reproduction est possible
     public bool CanReproduce() => Animals.Count >= 2 && AvailableSlots >= 1;
 
-    /// Constructeur protégé : initialise l'habitat pour une espèce donnée.
+    /// Constructeur protégé : initialise l'habitat
     protected Habitat(SpeciesType species)
     {
         Profile = HabitatProfileCatalog.Get(species);
@@ -65,7 +65,7 @@ public class Habitat
         Animals = new List<Animal>();
     }
 
-    /// Ajoute un animal à l'habitat si l'espèce correspond et s'il y a de la place.
+    /// Ajoute un animal à l'habitat
     public void AddAnimal(Animal animal)
     {
         if (animal.Species != Species)
@@ -79,7 +79,7 @@ public class Habitat
         Animals.Add(animal);
     }
 
-    /// Retire un animal de l'habitat.
+    /// Retire un animal
     public void RemoveAnimal(Animal animal)
     {
         Animals.Remove(animal);
@@ -135,7 +135,7 @@ public class Habitat
             }
             else
             {
-                break; // Survie ce mois, on retente le mois suivant
+                break; // Sauver ce mois ci
             }
         }
 
@@ -145,7 +145,7 @@ public class Habitat
     public override string ToString() =>
         $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | Animaux: {Animals.Count}/{Capacity}";
     
-    /// Tire aléatoirement les nouvelles maladies ce mois (proba annuelle → mensuelle).
+    /// Tire aléatoirement les nouvelles maladies ce mois
     private void ProcessSickness(Random random)
     {
         double monthlyChance = 1.0 - Math.Pow(1.0 - (double)LossProbability, 1.0 / 12.0);
