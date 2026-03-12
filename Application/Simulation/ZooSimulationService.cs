@@ -6,6 +6,7 @@ using Zoo.Domain.Feeding;
 using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
 using Zoo.Domain.Visitors;
+using Zoo.Domain.Reproduction;
 
 namespace Zoo.Application.Simulation;
 
@@ -17,6 +18,8 @@ public sealed class ZooSimulationService
     private readonly List<Habitat> _habitats = new();
     private int _lastStockLossMonth = -1;
     private readonly VisitorRevenueCalculator _visitorRevenueCalculator = new();
+    //Service de production
+    private readonly ReproductionService _reproductionService = new();
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
 
