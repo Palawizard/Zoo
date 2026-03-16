@@ -19,7 +19,8 @@ Console.WriteLine($"Budget after habitat: {simulation.Cash}€");
 for (var i = 0; i < 10; i++)
 {
     simulation.NextTurn();
+    var seasonLabel = simulation.IsHighSeason ? "High" : "Low";
 
     Console.WriteLine(
-        $"Turn {simulation.TurnNumber} - Day {simulation.CurrentDayOfMonth}/{simulation.CurrentMonth}/{simulation.CurrentYear}");
+        $"Turn {simulation.TurnNumber} - Day {simulation.CurrentDayOfMonth}/{simulation.CurrentMonth}/{simulation.CurrentYear} - {seasonLabel} season");
 }
