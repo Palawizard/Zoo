@@ -86,14 +86,11 @@ public class Habitat
     }
 
     /// Simule les événements mensuels : pertes naturelles puis surpopulation.
-    public IReadOnlyList<Animal> ProcessMonth(Random random)
+    public HabitatMonthlyOutcome ProcessMonth(Random random)
 {
-    var lost = new List<Animal>();
+    var newlySickAnimals = ProcessSickness(random);
+    var naturalLosses = new List<Animal>();
 
-    //new maladies
-    ProcessSickness(random); // les animaux malades bloquent la reproduction
-
-    //perte naturelle
     for (int i = 0; i < MonthlyLossCount; i++)
     {
         var candidates = Animals.Where(a => a.IsAlive).ToList();
@@ -104,14 +101,13 @@ public class Habitat
             var victim = candidates[random.Next(candidates.Count)];
             victim.Kill();
             Animals.Remove(victim);
-            lost.Add(victim);
+            naturalLosses.Add(victim);
         }
     }
 
-    //surpopulation
-    lost.AddRange(ProcessOverpopulation(random));
+    var overpopulationLosses = ProcessOverpopulation(random);
 
-    return lost;
+    return new HabitatMonthlyOutcome(naturalLosses, overpopulationLosses, newlySickAnimals);
 }
 
     /// Pour chaque animal en excès de capacité, 50% de chance qu'il meure.
@@ -146,15 +142,21 @@ public class Habitat
         $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | Animaux: {Animals.Count}/{Capacity}";
     
     /// Tire aléatoirement les nouvelles maladies ce mois (proba annuelle → mensuelle).
-    private void ProcessSickness(Random random)
+    private IReadOnlyList<Animal> ProcessSickness(Random random)
     {
         double monthlyChance = 1.0 - Math.Pow(1.0 - (double)LossProbability, 1.0 / 12.0);
+        var newlySickAnimals = new List<Animal>();
 
         foreach (var animal in Animals.Where(a => a.IsAlive && !a.IsSick))
         {
             if (random.NextDouble() < monthlyChance)
-                animal.ContractSickness(random);
+            {
+                if (animal.ContractSickness(random))
+                    newlySickAnimals.Add(animal);
+            }
         }
+
+        return newlySickAnimals;
     }
 
 }
