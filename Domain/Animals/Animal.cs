@@ -81,17 +81,23 @@ public abstract class Animal
         IsHungry = HungerDebtDays >= Profile.DaysBeforeHungry;
     }
 
-    public void AdvanceOneDay()
+    public bool AdvanceOneDay()
     {
         if (!IsAlive)
-            return;
+            return false;
 
         AgeDays++;
         ProgressArrivalReproductionBlockOneDay();
         ProgressDiseaseOneDay();
 
-        if (AgeDays >= Profile.LifeExpectancyDays)
-            Kill();
+        if (!IsAlive)
+            return false;
+
+        if (AgeDays < Profile.LifeExpectancyDays)
+            return false;
+
+        Kill();
+        return true;
     }
 
     public void TryCatchDiseaseToday()
