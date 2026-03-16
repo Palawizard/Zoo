@@ -15,3 +15,11 @@ var boughtTigerHabitat = simulation.BuyHabitat(SpeciesType.Tiger);
 Console.WriteLine($"Habitat bought: {boughtTigerHabitat}");
 Console.WriteLine($"Habitats in zoo: {simulation.Habitats.Count}");
 Console.WriteLine($"Budget after habitat: {simulation.Cash}€");
+
+for (var i = 0; i < 10; i++)
+{
+    simulation.NextTurn();
+
+    Console.WriteLine(
+        $"Turn {simulation.TurnNumber} - Day {simulation.CurrentDayOfMonth}/{simulation.CurrentMonth}/{simulation.CurrentYear}");
+}
