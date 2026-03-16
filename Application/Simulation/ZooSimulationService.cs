@@ -435,11 +435,16 @@ public void TryEggLayingForCurrentMonth()
     public void NextTurn()
     {
         ProcessDailyTurn();
-
-        if (CurrentDayOfMonth == 1) ProcessMonthlyTurn();
-        if (CurrentDayOfMonth == 1 && CurrentMonth == 1) ProcessYearlyTurn();
-
         AdvanceCalendar();
+
+        if (CurrentDayOfMonth == 1)
+        {
+            ProcessMonthlyTurn();
+
+            if (CurrentMonth == 1)
+                ProcessYearlyTurn();
+        }
+
         TurnNumber++;
     }
 
@@ -448,6 +453,7 @@ public void TryEggLayingForCurrentMonth()
         ProcessDailyFeeding();
         ProcessGestations();
         ProcessEggIncubations();
+        TryStartPregnancies();
     }
 
     private void ProcessMonthlyTurn()
