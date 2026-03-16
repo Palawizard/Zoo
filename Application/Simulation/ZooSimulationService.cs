@@ -27,7 +27,12 @@ public sealed class ZooSimulationService
     public decimal Cash { get; private set; }
     public Ledger Ledger { get; } = new();
 
+    public int CurrentDayOfMonth { get; private set; } = 1;
     public int CurrentMonth {get; private set;} = 1;
+    public int CurrentYear { get; private set; } = 1;
+    public int TurnNumber { get; private set; }
+    
+    public bool IsHighSeason => CurrentMonth >= 5 && CurrentMonth <= 9;
 
     public ZooSimulationService(
         IEnumerable<ZooAnimal>? animals = null,
@@ -425,5 +430,71 @@ public void TryEggLayingForCurrentMonth()
         Cash -= amount;
         Ledger.Add(new Transaction(DateTime.UtcNow, -amount, description, category, Cash));
         return true;
+    }
+
+    public void NextTurn()
+    {
+        ProcessDailyTurn();
+
+        if (CurrentDayOfMonth == 1) ProcessMonthlyTurn();
+        if (CurrentDayOfMonth == 1 && CurrentMonth == 1) ProcessYearlyTurn();
+
+        AdvanceCalendar();
+        TurnNumber++;
+    }
+
+    private void ProcessDailyTurn()
+    {
+        ProcessDailyFeeding();
+        ProcessGestations();
+        ProcessEggIncubations();
+    }
+
+    private void ProcessMonthlyTurn()
+    {
+        TryApplyMonthlyStockLoss(CurrentDayOfMonth);
+        TryEggLayingForCurrentMonth();
+        
+        foreach (var habitat in _habitats) habitat.ProcessMonth(Random.Shared);
+
+        CollectMonthlyVisitorRevenue();
+    }
+
+    private decimal CollectMonthlyVisitorRevenue()
+    {
+        return CollectDailyVisitorRevenue(IsHighSeason);
+    }
+
+    private void ProcessYearlyTurn()
+    {
+        var tigerCount = _animals.Count(a => a.IsAlive && a.Species == SpeciesType.Tiger);
+        var eagleCount = _animals.Count(a => a.IsAlive && a.Species == SpeciesType.Eagle);
+
+        var subsidy = (tigerCount * 43800m) + (eagleCount * 2190m);
+
+        if (subsidy > 0m)
+            AddCash(subsidy, "Protected species annual subsidy", "Subsidy");
+    }
+
+    private void AdvanceCalendar()
+    {
+        var daysInMonth = GetDaysInMonth(CurrentMonth);
+
+        if (CurrentDayOfMonth < daysInMonth)
+        {
+            CurrentDayOfMonth++;
+            return;
+        }
+
+        CurrentDayOfMonth = 1;
+
+        if (CurrentMonth < 12)
+        {
+            CurrentMonth++;
+            return;
+        }
+        
+        CurrentMonth = 1;
+        CurrentYear++;
     }
 }   
