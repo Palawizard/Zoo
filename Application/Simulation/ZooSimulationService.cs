@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Zoo.Domain.Animals;
+using Zoo.Domain.Events;
 using Zoo.Domain.Feeding;
 using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
@@ -15,12 +16,14 @@ public sealed class ZooSimulationService
     private readonly AnimalMarket _animalMarket = new();
     private readonly FoodMarket _foodMerchant = new();
     private readonly List<Habitat> _habitats = new();
+    private readonly List<ZooEvent> _events = new();
     private int _lastStockLossMonth = -1;
     private readonly VisitorRevenueCalculator _visitorRevenueCalculator = new();
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
 
     public IReadOnlyList<ZooAnimal> Animals => _animals;
+    public IReadOnlyList<ZooEvent> Events => _events;
 
     public decimal MeatStockKg { get; private set; }
     public decimal SeedsStockKg { get; private set; }
@@ -191,7 +194,13 @@ public sealed class ZooSimulationService
             var requiredKg = animal.GetDailyFoodNeedKg();
             var providedKg = ConsumeFromStock(animal.Profile.FoodType, requiredKg);
             animal.ApplyDailyFeeding(providedKg);
-            animal.AdvanceOneDay();
+            var diedOfOldAge = animal.AdvanceOneDay();
+            if (diedOfOldAge)
+            {
+                AddEvent(
+                    ZooEventType.EndOfLife,
+                    $"{animal.Name} died of old age.");
+            }
             animal.TryCatchDiseaseToday();
         }
     }
@@ -243,7 +252,23 @@ public void ProcessGestations()
             var bornCount = female.ProgressGestationOneDay();
             if (bornCount <= 0) continue;
 
-            newborns.AddRange(CreateOffspringBatch(female.Species,bornCount,female.Profile.InfantMortalityRate));
+            var batch = CreateOffspringBatch(female.Species, bornCount, female.Profile.InfantMortalityRate);
+
+            if (batch.TotalBornCount > 0)
+            {
+                AddEvent(
+                    ZooEventType.Birth,
+                    $"{female.Name} gave birth to {batch.TotalBornCount} {female.Species} newborn(s).");
+            }
+
+            if (batch.InfantDeathCount > 0)
+            {
+                AddEvent(
+                    ZooEventType.InfantDeath,
+                    $"{batch.InfantDeathCount} {female.Species} newborn(s) died from infant mortality.");
+            }
+
+            newborns.AddRange(batch.Newborns);
         }
 
         if (newborns.Count > 0)
@@ -259,7 +284,23 @@ public void ProcessEggIncubations()
             var hatchedCount = female.ProgressEggIncubationOneDay();
             if (hatchedCount <= 0) continue;
 
-            newborns.AddRange(CreateOffspringBatch(female.Species, hatchedCount, female.Profile.InfantMortalityRate));
+            var batch = CreateOffspringBatch(female.Species, hatchedCount, female.Profile.InfantMortalityRate);
+
+            if (batch.TotalBornCount > 0)
+            {
+                AddEvent(
+                    ZooEventType.Birth,
+                    $"{female.Name} hatched {batch.TotalBornCount} {female.Species} newborn(s).");
+            }
+
+            if (batch.InfantDeathCount > 0)
+            {
+                AddEvent(
+                    ZooEventType.InfantDeath,
+                    $"{batch.InfantDeathCount} {female.Species} newborn(s) died from infant mortality.");
+            }
+
+            newborns.AddRange(batch.Newborns);
         }
 
         if (newborns.Count > 0)
@@ -284,7 +325,12 @@ public void TryStartPregnancies()
             foreach (var female in speciesGroup.Where(a => a.Sex == SexType.Female))
             {
                 if (female.CanStartGestationToday())
+                {
                     female.StartGestation();
+                    AddEvent(
+                        ZooEventType.Pregnancy,
+                        $"{female.Name} started a gestation for species {female.Species}.");
+                }
             }
         }
 }
@@ -302,7 +348,13 @@ public void TryEggLayingForCurrentMonth()
         }
 }
 
-    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count, decimal? infantMortalityRate)
+    private sealed record OffspringBatchResult(
+        IReadOnlyList<ZooAnimal> Newborns,
+        int TotalBornCount,
+        int SurvivorCount,
+        int InfantDeathCount);
+
+    private OffspringBatchResult CreateOffspringBatch(SpeciesType species, int count, decimal? infantMortalityRate)
         {
             var survivorCount = ComputeSurvivorsAfterInfantMortality(count, infantMortalityRate);
 
@@ -315,7 +367,11 @@ public void TryEggLayingForCurrentMonth()
                 newborns.Add(new ZooAnimal(name, sex, species, ageDays : 0, isHungry: false, isSick: false));
 
             }
-            return newborns;
+            return new OffspringBatchResult(
+                newborns,
+                count,
+                survivorCount,
+                count - survivorCount);
         }
 
     private static int ComputeSurvivorsAfterInfantMortality(int newbornCount, decimal? infantMortalityRate)
@@ -430,6 +486,17 @@ public void TryEggLayingForCurrentMonth()
         Cash -= amount;
         Ledger.Add(new Transaction(DateTime.UtcNow, -amount, description, category, Cash));
         return true;
+    }
+
+    private void AddEvent(ZooEventType type, string description)
+    {
+        _events.Add(new ZooEvent(
+            TurnNumber + 1,
+            CurrentYear,
+            CurrentMonth,
+            CurrentDayOfMonth,
+            type,
+            description));
     }
 
     public void NextTurn()
