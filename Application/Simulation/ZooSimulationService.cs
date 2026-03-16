@@ -17,7 +17,7 @@ public sealed class ZooSimulationService
     private readonly FoodMarket _foodMerchant = new();
     private readonly List<Habitat> _habitats = new();
     private readonly List<ZooEvent> _events = new();
-    private int _lastStockLossMonth = -1;
+    private int _lastExceptionalEventsMonth = -1;
     private readonly VisitorRevenueCalculator _visitorRevenueCalculator = new();
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
@@ -144,25 +144,21 @@ public sealed class ZooSimulationService
     }
 
     //Perte du stock
-    public void TryApplyMonthlyStockLoss(int dayOfMonth)
+    public void TryApplyMonthlyExceptionalEvents(int dayOfMonth)
     {
-        //securise la date du mois
         var daysInMonth = GetDaysInMonth(CurrentMonth);
         if (dayOfMonth < 1 || dayOfMonth > daysInMonth)
             throw new ArgumentOutOfRangeException(nameof(dayOfMonth), $"Day must be between 1 and {daysInMonth}.");
 
-        //lance le 1er jour
-        if (dayOfMonth != 1 || _lastStockLossMonth == CurrentMonth) return;
+        if (dayOfMonth != 1 || _lastExceptionalEventsMonth == CurrentMonth)
+            return;
 
-        _lastStockLossMonth = CurrentMonth;
+        _lastExceptionalEventsMonth = CurrentMonth;
 
-        //20% de chance: perte de 10% des graines
-        if (IsEventTriggered(0.20m))
-            SeedsStockKg = ReduceByPercent(SeedsStockKg, 0.10m);
-
-        //10% de chance: perte de 20% de la viande
-        if (IsEventTriggered(0.10m))
-            MeatStockKg = ReduceByPercent(MeatStockKg, 0.20m);
+        TryApplyMonthlyFire();
+        TryApplyMonthlyTheft();
+        TryApplyMonthlyPests();
+        TryApplyMonthlySpoiledMeat();
     }
 
     //calcule revenu visiteurs
@@ -233,6 +229,75 @@ public sealed class ZooSimulationService
         var seedConsumed = Math.Min(SeedsStockKg, requestedKg);
         SeedsStockKg -= seedConsumed;
         return seedConsumed;
+    }
+
+    private void TryApplyMonthlyFire()
+    {
+        if (!IsEventTriggered(0.01m) || _habitats.Count == 0)
+            return;
+
+        var habitatIndex = Random.Shared.Next(_habitats.Count);
+        var habitat = _habitats[habitatIndex];
+        _habitats.RemoveAt(habitatIndex);
+
+        AddEvent(
+            ZooEventType.Fire,
+            $"A fire destroyed one {habitat.Species} habitat.");
+    }
+
+    private void TryApplyMonthlyTheft()
+    {
+        if (!IsEventTriggered(0.01m))
+            return;
+
+        var candidates = _animals.Where(a => a.IsAlive).ToList();
+        if (candidates.Count == 0)
+            return;
+
+        var victim = candidates[Random.Shared.Next(candidates.Count)];
+        RemoveAnimalFromZoo(victim);
+
+        AddEvent(
+            ZooEventType.Theft,
+            $"{victim.Name} was stolen from the zoo.");
+    }
+
+    private void TryApplyMonthlyPests()
+    {
+        if (!IsEventTriggered(0.20m) || SeedsStockKg <= 0m)
+            return;
+
+        var newStock = ReduceByPercent(SeedsStockKg, 0.10m);
+        var lostKg = SeedsStockKg - newStock;
+        SeedsStockKg = newStock;
+
+        AddEvent(
+            ZooEventType.Pests,
+            $"Pests destroyed {lostKg:0.##} kg of seeds.");
+    }
+
+    private void TryApplyMonthlySpoiledMeat()
+    {
+        if (!IsEventTriggered(0.10m) || MeatStockKg <= 0m)
+            return;
+
+        var newStock = ReduceByPercent(MeatStockKg, 0.20m);
+        var lostKg = MeatStockKg - newStock;
+        MeatStockKg = newStock;
+
+        AddEvent(
+            ZooEventType.SpoiledMeat,
+            $"{lostKg:0.##} kg of meat spoiled.");
+    }
+
+    private void RemoveAnimalFromZoo(ZooAnimal animal)
+    {
+        ArgumentNullException.ThrowIfNull(animal);
+
+        _animals.Remove(animal);
+
+        foreach (var habitat in _habitats)
+            habitat.RemoveAnimal(animal);
     }
 
     public void SetCurrentMonth(int month)
@@ -525,7 +590,7 @@ public void TryEggLayingForCurrentMonth()
 
     private void ProcessMonthlyTurn()
     {
-        TryApplyMonthlyStockLoss(CurrentDayOfMonth);
+        TryApplyMonthlyExceptionalEvents(CurrentDayOfMonth);
         TryEggLayingForCurrentMonth();
         
         foreach (var habitat in _habitats) habitat.ProcessMonth(Random.Shared);

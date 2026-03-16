@@ -5,5 +5,9 @@ public enum ZooEventType
     Pregnancy,
     Birth,
     InfantDeath,
-    EndOfLife
+    EndOfLife,
+    Fire,
+    Theft,
+    Pests,
+    SpoiledMeat
 }
