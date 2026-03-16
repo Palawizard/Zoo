@@ -170,7 +170,7 @@ public sealed class ZooSimulationService
     }
 
     //ajoute l'argent
-    public decimal CollectDailyVisitorRevenue(bool isHighSeason)
+    public decimal CollectVisitorRevenue(bool isHighSeason)
     {
         var revenueBySpecies = CalculateVisitorRevenueBySpecies(isHighSeason);
         var total = revenueBySpecies.Values.Sum();
@@ -468,7 +468,7 @@ public void TryEggLayingForCurrentMonth()
 
     private decimal CollectMonthlyVisitorRevenue()
     {
-        return CollectDailyVisitorRevenue(IsHighSeason);
+        return CollectVisitorRevenue(IsHighSeason);
     }
 
     private void ProcessYearlyTurn()
