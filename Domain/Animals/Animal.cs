@@ -81,41 +81,54 @@ public abstract class Animal
         IsHungry = HungerDebtDays >= Profile.DaysBeforeHungry;
     }
 
-    public void AdvanceOneDay()
+    public AnimalDailyOutcome AdvanceOneDay()
     {
         if (!IsAlive)
-            return;
+            return new AnimalDailyOutcome();
 
         AgeDays++;
         ProgressArrivalReproductionBlockOneDay();
-        ProgressDiseaseOneDay();
+        if (ProgressDiseaseOneDay())
+            return new AnimalDailyOutcome(DiedOfDisease: true);
 
-        if (AgeDays >= Profile.LifeExpectancyDays)
-            Kill();
+        if (!IsAlive)
+            return new AnimalDailyOutcome();
+
+        if (AgeDays < Profile.LifeExpectancyDays)
+            return new AnimalDailyOutcome();
+
+        Kill();
+        return new AnimalDailyOutcome(DiedOfOldAge: true);
     }
 
-    public void TryCatchDiseaseToday()
+    public bool TryCatchDiseaseToday()
     {
         if (!IsAlive || IsSick)
-            return;
+            return false;
 
         var dailyProbability = GetDailyDiseaseProbability();
         if (dailyProbability <= 0m)
-            return;
+            return false;
 
         var roll = (decimal)Random.Shared.NextDouble();
         if (roll < dailyProbability)
+        {
             StartDisease(Random.Shared);
+            return true;
+        }
+
+        return false;
     }
 
-    public void ContractSickness(Random random)
+    public bool ContractSickness(Random random)
     {
         ArgumentNullException.ThrowIfNull(random);
 
         if (!IsAlive || IsSick)
-            return;
+            return false;
 
         StartDisease(random);
+        return true;
     }
 
     public bool CanReproduceToday()
@@ -267,15 +280,15 @@ public abstract class Animal
         DiseaseRemainingDays = GetRandomDiseaseDurationDays(random);
     }
 
-    private void ProgressDiseaseOneDay()
+    private bool ProgressDiseaseOneDay()
     {
         if (!IsSick || DiseaseRemainingDays <= 0)
-            return;
+            return false;
 
         DiseaseRemainingDays--;
 
         if (DiseaseRemainingDays > 0)
-            return;
+            return false;
 
         DiseaseRemainingDays = 0;
         
@@ -283,10 +296,11 @@ public abstract class Animal
         if (roll < DiseaseDeathProbability)
         {
             Kill();
-            return;
+            return true;
         }
         
         Heal();
+        return false;
     }
 
     private int GetRandomDiseaseDurationDays(Random random)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Zoo.Domain.Animals;
+using Zoo.Domain.Events;
 using Zoo.Domain.Feeding;
 using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
@@ -16,7 +17,8 @@ public sealed class ZooSimulationService
     private readonly AnimalMarket _animalMarket = new();
     private readonly FoodMarket _foodMerchant = new();
     private readonly List<Habitat> _habitats = new();
-    private int _lastStockLossMonth = -1;
+    private readonly List<ZooEvent> _events = new();
+    private int _lastExceptionalEventsMonth = -1;
     private readonly VisitorRevenueCalculator _visitorRevenueCalculator = new();
     //Service de production
     private readonly ReproductionService _reproductionService = new();
@@ -24,13 +26,19 @@ public sealed class ZooSimulationService
     public IReadOnlyList<Habitat> Habitats => _habitats;
 
     public IReadOnlyList<ZooAnimal> Animals => _animals;
+    public IReadOnlyList<ZooEvent> Events => _events;
 
     public decimal MeatStockKg { get; private set; }
     public decimal SeedsStockKg { get; private set; }
     public decimal Cash { get; private set; }
     public Ledger Ledger { get; } = new();
 
+    public int CurrentDayOfMonth { get; private set; } = 1;
     public int CurrentMonth {get; private set;} = 1;
+    public int CurrentYear { get; private set; } = 1;
+    public int TurnNumber { get; private set; }
+    
+    public bool IsHighSeason => CurrentMonth >= 5 && CurrentMonth <= 9;
 
     public ZooSimulationService(
         IEnumerable<ZooAnimal>? animals = null,
@@ -49,6 +57,9 @@ public sealed class ZooSimulationService
         SeedsStockKg = seedsStockKg;
         Cash = cash;
         Ledger.Add(new Transaction(DateTime.UtcNow, cash, "Initial zoo budget", "Init", Cash));
+        AddEvent(
+            ZooEventType.SimulationInitialized,
+            $"Simulation initialized with {Cash:0.##}€ cash, {MeatStockKg:0.##} kg meat and {SeedsStockKg:0.##} kg seeds.");
 
         if (animals is not null)
         {
@@ -74,16 +85,24 @@ public sealed class ZooSimulationService
         if (!SpendCash(cost, $"Buy animal: {animal.Species}", "Animal")) return false;
 
         AddAnimal(animal);
+        AddEvent(
+            ZooEventType.AnimalPurchased,
+            $"{animal.Name} ({animal.Species}) was bought for {cost:0.##}€.");
         return true;
     }
 
     public bool SellAnimal(ZooAnimal animal)
     {
         ArgumentNullException.ThrowIfNull(animal);
-        if (!_animals.Remove(animal)) return false;
+        if (!_animals.Contains(animal)) return false;
+
+        RemoveAnimalFromZoo(animal);
 
         var revenue = _animalMarket.SellAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
         AddCash(revenue, $"Sell animal: {animal.Species}", "Animal");
+        AddEvent(
+            ZooEventType.AnimalSold,
+            $"{animal.Name} ({animal.Species}) was sold for {revenue:0.##}€.");
         return true;
     }
 
@@ -94,6 +113,9 @@ public sealed class ZooSimulationService
         if (!SpendCash(habitat.BuyPrice, $"Buy habitat: {species}", "Habitat")) return false;
 
         _habitats.Add(habitat);
+        AddEvent(
+            ZooEventType.HabitatPurchased,
+            $"{species} habitat bought for {habitat.BuyPrice:0.##}€.");
         return true;
     }
 
@@ -103,6 +125,9 @@ public sealed class ZooSimulationService
         if (!_habitats.Remove(habitat)) return false;
 
         AddCash(habitat.SellPrice, $"Sell habitat: {habitat.Species}", "Habitat");
+        AddEvent(
+            ZooEventType.HabitatSold,
+            $"{habitat.Species} habitat sold for {habitat.SellPrice:0.##}€.");
         return true;
     }
 
@@ -118,6 +143,9 @@ public sealed class ZooSimulationService
         if (!SpendCash(cost, $"Buy food: {label} ({kg:0.##} kg)", "Food")) return false;
 
         AddFood(type, kg);
+        AddEvent(
+            ZooEventType.FoodPurchased,
+            $"{kg:0.##} kg of {label} bought for {cost:0.##}€.");
         return true;
     }
 
@@ -139,25 +167,21 @@ public sealed class ZooSimulationService
     }
 
     //Perte du stock
-    public void TryApplyMonthlyStockLoss(int dayOfMonth)
+    public void TryApplyMonthlyExceptionalEvents(int dayOfMonth)
     {
-        //securise la date du mois
         var daysInMonth = GetDaysInMonth(CurrentMonth);
         if (dayOfMonth < 1 || dayOfMonth > daysInMonth)
             throw new ArgumentOutOfRangeException(nameof(dayOfMonth), $"Day must be between 1 and {daysInMonth}.");
 
-        //lance le 1er jour
-        if (dayOfMonth != 1 || _lastStockLossMonth == CurrentMonth) return;
+        if (dayOfMonth != 1 || _lastExceptionalEventsMonth == CurrentMonth)
+            return;
 
-        _lastStockLossMonth = CurrentMonth;
+        _lastExceptionalEventsMonth = CurrentMonth;
 
-        //20% de chance: perte de 10% des graines
-        if (IsEventTriggered(0.20m))
-            SeedsStockKg = ReduceByPercent(SeedsStockKg, 0.10m);
-
-        //10% de chance: perte de 20% de la viande
-        if (IsEventTriggered(0.10m))
-            MeatStockKg = ReduceByPercent(MeatStockKg, 0.20m);
+        TryApplyMonthlyFire();
+        TryApplyMonthlyTheft();
+        TryApplyMonthlyPests();
+        TryApplyMonthlySpoiledMeat();
     }
 
     //calcule revenu visiteurs
@@ -168,7 +192,7 @@ public sealed class ZooSimulationService
     }
 
     //ajoute l'argent
-    public decimal CollectDailyVisitorRevenue(bool isHighSeason)
+    public decimal CollectVisitorRevenue(bool isHighSeason)
     {
         var revenueBySpecies = CalculateVisitorRevenueBySpecies(isHighSeason);
         var total = revenueBySpecies.Values.Sum();
@@ -177,6 +201,9 @@ public sealed class ZooSimulationService
         {
             var seasonLabel = isHighSeason ? "high" : "low";
             AddCash(total, $"Visitors income ({seasonLabel} season)", "Visitors");
+            AddEvent(
+                ZooEventType.VisitorIncome,
+                $"Visitors generated {total:0.##}€ during {seasonLabel} season.");
         }
 
         return total;
@@ -189,8 +216,26 @@ public sealed class ZooSimulationService
             var requiredKg = animal.GetDailyFoodNeedKg();
             var providedKg = ConsumeFromStock(animal.Profile.FoodType, requiredKg);
             animal.ApplyDailyFeeding(providedKg);
-            animal.AdvanceOneDay();
-            animal.TryCatchDiseaseToday();
+            var dailyOutcome = animal.AdvanceOneDay();
+            if (dailyOutcome.DiedOfOldAge)
+            {
+                AddEvent(
+                    ZooEventType.EndOfLife,
+                    $"{animal.Name} died of old age.");
+            }
+            else if (dailyOutcome.DiedOfDisease)
+            {
+                AddEvent(
+                    ZooEventType.DiseaseDeath,
+                    $"{animal.Name} died from disease.");
+            }
+
+            if (animal.TryCatchDiseaseToday())
+            {
+                AddEvent(
+                    ZooEventType.Disease,
+                    $"{animal.Name} became sick.");
+            }
         }
     }
 
@@ -224,6 +269,75 @@ public sealed class ZooSimulationService
         return seedConsumed;
     }
 
+    private void TryApplyMonthlyFire()
+    {
+        if (!IsEventTriggered(0.01m) || _habitats.Count == 0)
+            return;
+
+        var habitatIndex = Random.Shared.Next(_habitats.Count);
+        var habitat = _habitats[habitatIndex];
+        _habitats.RemoveAt(habitatIndex);
+
+        AddEvent(
+            ZooEventType.Fire,
+            $"A fire destroyed one {habitat.Species} habitat.");
+    }
+
+    private void TryApplyMonthlyTheft()
+    {
+        if (!IsEventTriggered(0.01m))
+            return;
+
+        var candidates = _animals.Where(a => a.IsAlive).ToList();
+        if (candidates.Count == 0)
+            return;
+
+        var victim = candidates[Random.Shared.Next(candidates.Count)];
+        RemoveAnimalFromZoo(victim);
+
+        AddEvent(
+            ZooEventType.Theft,
+            $"{victim.Name} was stolen from the zoo.");
+    }
+
+    private void TryApplyMonthlyPests()
+    {
+        if (!IsEventTriggered(0.20m) || SeedsStockKg <= 0m)
+            return;
+
+        var newStock = ReduceByPercent(SeedsStockKg, 0.10m);
+        var lostKg = SeedsStockKg - newStock;
+        SeedsStockKg = newStock;
+
+        AddEvent(
+            ZooEventType.Pests,
+            $"Pests destroyed {lostKg:0.##} kg of seeds.");
+    }
+
+    private void TryApplyMonthlySpoiledMeat()
+    {
+        if (!IsEventTriggered(0.10m) || MeatStockKg <= 0m)
+            return;
+
+        var newStock = ReduceByPercent(MeatStockKg, 0.20m);
+        var lostKg = MeatStockKg - newStock;
+        MeatStockKg = newStock;
+
+        AddEvent(
+            ZooEventType.SpoiledMeat,
+            $"{lostKg:0.##} kg of meat spoiled.");
+    }
+
+    private void RemoveAnimalFromZoo(ZooAnimal animal)
+    {
+        ArgumentNullException.ThrowIfNull(animal);
+
+        _animals.Remove(animal);
+
+        foreach (var habitat in _habitats)
+            habitat.RemoveAnimal(animal);
+    }
+
     public void SetCurrentMonth(int month)
     {
         if (month < 1 || month > 12)
@@ -241,7 +355,23 @@ public void ProcessGestations()
             var bornCount = female.ProgressGestationOneDay();
             if (bornCount <= 0) continue;
 
-            newborns.AddRange(CreateOffspringBatch(female.Species,bornCount,female.Profile.InfantMortalityRate));
+            var batch = CreateOffspringBatch(female.Species, bornCount, female.Profile.InfantMortalityRate);
+
+            if (batch.TotalBornCount > 0)
+            {
+                AddEvent(
+                    ZooEventType.Birth,
+                    $"{female.Name} gave birth to {batch.TotalBornCount} {female.Species} newborn(s).");
+            }
+
+            if (batch.InfantDeathCount > 0)
+            {
+                AddEvent(
+                    ZooEventType.InfantDeath,
+                    $"{batch.InfantDeathCount} {female.Species} newborn(s) died from infant mortality.");
+            }
+
+            newborns.AddRange(batch.Newborns);
         }
 
         if (newborns.Count > 0)
@@ -257,7 +387,23 @@ public void ProcessEggIncubations()
             var hatchedCount = female.ProgressEggIncubationOneDay();
             if (hatchedCount <= 0) continue;
 
-            newborns.AddRange(CreateOffspringBatch(female.Species, hatchedCount, female.Profile.InfantMortalityRate));
+            var batch = CreateOffspringBatch(female.Species, hatchedCount, female.Profile.InfantMortalityRate);
+
+            if (batch.TotalBornCount > 0)
+            {
+                AddEvent(
+                    ZooEventType.Birth,
+                    $"{female.Name} hatched {batch.TotalBornCount} {female.Species} newborn(s).");
+            }
+
+            if (batch.InfantDeathCount > 0)
+            {
+                AddEvent(
+                    ZooEventType.InfantDeath,
+                    $"{batch.InfantDeathCount} {female.Species} newborn(s) died from infant mortality.");
+            }
+
+            newborns.AddRange(batch.Newborns);
         }
 
         if (newborns.Count > 0)
@@ -282,7 +428,12 @@ public void TryStartPregnancies()
             foreach (var female in speciesGroup.Where(a => a.Sex == SexType.Female))
             {
                 if (female.CanStartGestationToday())
+                {
                     female.StartGestation();
+                    AddEvent(
+                        ZooEventType.Pregnancy,
+                        $"{female.Name} started a gestation for species {female.Species}.");
+                }
             }
         }
 }
@@ -297,10 +448,19 @@ public void TryEggLayingForCurrentMonth()
             if (eggsToIncubate <= 0) continue;
 
             female.StartEggIncubation(eggsToIncubate, CurrentMonth);
+            AddEvent(
+                ZooEventType.EggLaying,
+                $"{female.Name} laid {eggsToIncubate} egg(s).");
         }
 }
 
-    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count, decimal? infantMortalityRate)
+    private sealed record OffspringBatchResult(
+        IReadOnlyList<ZooAnimal> Newborns,
+        int TotalBornCount,
+        int SurvivorCount,
+        int InfantDeathCount);
+
+    private OffspringBatchResult CreateOffspringBatch(SpeciesType species, int count, decimal? infantMortalityRate)
         {
             var survivorCount = ComputeSurvivorsAfterInfantMortality(count, infantMortalityRate);
 
@@ -313,7 +473,11 @@ public void TryEggLayingForCurrentMonth()
                 newborns.Add(new ZooAnimal(name, sex, species, ageDays : 0, isHungry: false, isSick: false));
 
             }
-            return newborns;
+            return new OffspringBatchResult(
+                newborns,
+                count,
+                survivorCount,
+                count - survivorCount);
         }
 
     private static int ComputeSurvivorsAfterInfantMortality(int newbornCount, decimal? infantMortalityRate)
@@ -430,29 +594,118 @@ public void TryEggLayingForCurrentMonth()
         return true;
     }
 
-    // subvention
-    public decimal ApplyAnnualSubsidies()
+    private void AddEvent(ZooEventType type, string description)
     {
-        decimal total = 0m;
+        _events.Add(new ZooEvent(
+            TurnNumber,
+            CurrentYear,
+            CurrentMonth,
+            CurrentDayOfMonth,
+            type,
+            description));
+    }
 
-        // aigle
-        var eagleCount = _animals.Count(a => a.Species == SpeciesType.Eagle);
-        total += eagleCount * 2190m;
+    public void NextTurn()
+    {
+        TurnNumber++;
+        ProcessDailyTurn();
+        AdvanceCalendar();
 
-        // tigre
-        var tigerCount = _animals.Count(a => a.Species == SpeciesType.Tiger);
-        total += tigerCount * 43800m;
-
-        // check cash dispo
-        if (Cash < total)
+        if (CurrentDayOfMonth == 1)
         {
-            Console.WriteLine("We can't give invisible money, thank you for reducing our contract");
-        }
-        else
-        {
-            SpendCash(total, "Annual subsidy", "Subsidy");
+            ProcessMonthlyTurn();
+
+            if (CurrentMonth == 1)
+                ProcessYearlyTurn();
         }
 
-        return total;
+        AddEvent(
+            ZooEventType.TurnAdvanced,
+            $"Turn {TurnNumber} completed. Current date is {CurrentDayOfMonth}/{CurrentMonth}/{CurrentYear}.");
+    }
+
+    private void ProcessDailyTurn()
+    {
+        ProcessDailyFeeding();
+        ProcessGestations();
+        ProcessEggIncubations();
+        TryStartPregnancies();
+    }
+
+    private void ProcessMonthlyTurn()
+    {
+        TryApplyMonthlyExceptionalEvents(CurrentDayOfMonth);
+        TryEggLayingForCurrentMonth();
+        
+        foreach (var habitat in _habitats)
+        {
+            var monthlyOutcome = habitat.ProcessMonth(Random.Shared);
+
+            foreach (var animal in monthlyOutcome.NewlySickAnimals)
+            {
+                AddEvent(
+                    ZooEventType.Disease,
+                    $"{animal.Name} became sick in the {habitat.Species} habitat.");
+            }
+
+            foreach (var animal in monthlyOutcome.NaturalLosses)
+            {
+                AddEvent(
+                    ZooEventType.HabitatMonthlyLoss,
+                    $"{animal.Name} died during monthly habitat losses in the {habitat.Species} habitat.");
+            }
+
+            foreach (var animal in monthlyOutcome.OverpopulationLosses)
+            {
+                AddEvent(
+                    ZooEventType.OverpopulationDeath,
+                    $"{animal.Name} died because of overpopulation in the {habitat.Species} habitat.");
+            }
+        }
+
+        CollectMonthlyVisitorRevenue();
+    }
+
+    private decimal CollectMonthlyVisitorRevenue()
+    {
+        return CollectVisitorRevenue(IsHighSeason);
+    }
+
+    private void ProcessYearlyTurn()
+    {
+        var tigerCount = _animals.Count(a => a.IsAlive && a.Species == SpeciesType.Tiger);
+        var eagleCount = _animals.Count(a => a.IsAlive && a.Species == SpeciesType.Eagle);
+
+        var subsidy = (tigerCount * 43800m) + (eagleCount * 2190m);
+
+        if (subsidy > 0m)
+        {
+            AddCash(subsidy, "Protected species annual subsidy", "Subsidy");
+            AddEvent(
+                ZooEventType.AnnualSubsidy,
+                $"Protected species subsidy added {subsidy:0.##}€.");
+        }
+    }
+
+    private void AdvanceCalendar()
+    {
+        var daysInMonth = GetDaysInMonth(CurrentMonth);
+
+        if (CurrentDayOfMonth < daysInMonth)
+        {
+            CurrentDayOfMonth++;
+            return;
+        }
+
+        CurrentDayOfMonth = 1;
+
+        if (CurrentMonth < 12)
+        {
+            CurrentMonth++;
+            return;
+        }
+        
+        CurrentMonth = 1;
+        CurrentYear++;
     }
 }   
