@@ -167,7 +167,10 @@ public sealed class ZooConsoleApp
     {
         var species = _input.ReadEnumChoice<SpeciesType>("Choose habitat species:");
         if (_simulation.BuyHabitat(species))
+        {
             Console.WriteLine("Habitat purchased.");
+            OfferAnimalsForHabitat(species);
+        }
         else
             Console.WriteLine("Purchase denied: not enough cash.");
     }
@@ -226,5 +229,52 @@ public sealed class ZooConsoleApp
             Console.WriteLine("Habitat sold.");
         else
             Console.WriteLine("Sale failed.");
+    }
+
+    private void OfferAnimalsForHabitat(SpeciesType species)
+    {
+        var habitat = _simulation.Habitats.LastOrDefault(h => h.Species == species);
+        if (habitat is null)
+            return;
+
+        if (habitat.AvailableSlots <= 0)
+        {
+            Console.WriteLine("This habitat has no available slots.");
+            return;
+        }
+
+        var shouldBuy = _input.ReadYesNo("Buy animals for this habitat?");
+        if (!shouldBuy)
+            return;
+
+        var maxCount = habitat.AvailableSlots;
+        var count = _input.ReadInt($"How many animals (1-{maxCount})?", 1, maxCount);
+
+        for (var i = 0; i < count; i++)
+        {
+            Console.WriteLine($"Animal {i + 1}/{count}");
+            var name = _input.ReadRequiredString("Animal name:");
+            var sex = _input.ReadEnumChoice<SexType>("Choose sex:");
+            var ageDays = _input.ReadInt("Age in days (0 = newborn):", 0, 36500);
+
+            var animal = new ZooAnimal(name, sex, species, ageDays);
+            if (!_simulation.BuyAnimal(animal))
+            {
+                Console.WriteLine("Purchase denied: not enough cash.");
+                break;
+            }
+
+            try
+            {
+                habitat.AddAnimal(animal);
+                Console.WriteLine("Animal added to the habitat.");
+            }
+            catch (Exception ex)
+            {
+                _simulation.SellAnimal(animal);
+                Console.WriteLine($"Cannot add animal to habitat: {ex.Message}");
+                break;
+            }
+        }
     }
 }
