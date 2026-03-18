@@ -7,7 +7,6 @@ using Zoo.Domain.Feeding;
 using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
 using Zoo.Domain.Visitors;
-using Zoo.Domain.Reproduction;
 
 namespace Zoo.Application.Simulation;
 
@@ -18,10 +17,9 @@ public sealed class ZooSimulationService
     private readonly FoodMarket _foodMerchant = new();
     private readonly List<Habitat> _habitats = new();
     private readonly List<ZooEvent> _events = new();
+    private readonly Dictionary<Guid, Guid> _monogamousPairs = new();
     private int _lastExceptionalEventsMonth = -1;
     private readonly VisitorRevenueCalculator _visitorRevenueCalculator = new();
-    //Service de production
-    private readonly ReproductionService _reproductionService = new();
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
 
@@ -122,6 +120,8 @@ public sealed class ZooSimulationService
     public bool SellHabitat(Habitat habitat)
     {
         ArgumentNullException.ThrowIfNull(habitat);
+        if (habitat.Animals.Count > 0)
+            return false;
         if (!_habitats.Remove(habitat)) return false;
 
         AddCash(habitat.SellPrice, $"Sell habitat: {habitat.Species}", "Habitat");
@@ -332,6 +332,7 @@ public sealed class ZooSimulationService
     {
         ArgumentNullException.ThrowIfNull(animal);
 
+        RemovePairing(animal.Id);
         _animals.Remove(animal);
 
         foreach (var habitat in _habitats)
@@ -346,16 +347,25 @@ public sealed class ZooSimulationService
         CurrentMonth = month;
     }
 
-public void ProcessGestations()
-{
-    var newborns = new List<ZooAnimal>();
+    public void ProcessGestations()
+    {
+        var newborns = new List<ZooAnimal>();
 
-    foreach (var female in _animals.Where(a => a.IsAlive && a.Sex == SexType.Female && a.IsGestating))
+        foreach (var female in _animals.Where(a => a.IsAlive && a.Sex == SexType.Female && a.IsGestating))
         {
             var bornCount = female.ProgressGestationOneDay();
-            if (bornCount <= 0) continue;
+            if (bornCount <= 0)
+                continue;
 
-            var batch = CreateOffspringBatch(female.Species, bornCount, female.Profile.InfantMortalityRate);
+            female.RegisterBirthCycleCompleted();
+
+            var queuedForSpecies = newborns.Count(a => a.Species == female.Species);
+            var availableHabitatSlots = GetRemainingHabitatCapacityForSpecies(female.Species, queuedForSpecies);
+            var batch = CreateOffspringBatch(
+                female.Species,
+                bornCount,
+                female.Profile.InfantMortalityRate,
+                availableHabitatSlots);
 
             if (batch.TotalBornCount > 0)
             {
@@ -374,20 +384,28 @@ public void ProcessGestations()
             newborns.AddRange(batch.Newborns);
         }
 
-        if (newborns.Count > 0)
-            _animals.AddRange(newborns);
-}
+        AddNewbornsToZoo(newborns);
+    }
 
-public void ProcessEggIncubations()
-{
-    var newborns = new List<ZooAnimal>();
+    public void ProcessEggIncubations()
+    {
+        var newborns = new List<ZooAnimal>();
 
-    foreach (var female in _animals.Where(a => a.IsAlive && a.Sex == SexType.Female && a.EggIncubationRemainingDays > 0))
+        foreach (var female in _animals.Where(a => a.IsAlive && a.Sex == SexType.Female && a.EggIncubationRemainingDays > 0))
         {
             var hatchedCount = female.ProgressEggIncubationOneDay();
-            if (hatchedCount <= 0) continue;
+            if (hatchedCount <= 0)
+                continue;
 
-            var batch = CreateOffspringBatch(female.Species, hatchedCount, female.Profile.InfantMortalityRate);
+            female.RegisterBirthCycleCompleted();
+
+            var queuedForSpecies = newborns.Count(a => a.Species == female.Species);
+            var availableHabitatSlots = GetRemainingHabitatCapacityForSpecies(female.Species, queuedForSpecies);
+            var batch = CreateOffspringBatch(
+                female.Species,
+                hatchedCount,
+                female.Profile.InfantMortalityRate,
+                availableHabitatSlots);
 
             if (batch.TotalBornCount > 0)
             {
@@ -406,53 +424,73 @@ public void ProcessEggIncubations()
             newborns.AddRange(batch.Newborns);
         }
 
-        if (newborns.Count > 0)
-            _animals.AddRange(newborns);
-}
+        AddNewbornsToZoo(newborns);
+    }
 
-public void TryStartPregnancies()
-{
-    var aliveBySpecies = _animals
-        .Where(a => a.IsAlive)
-        .GroupBy(a => a.Species);
+    public void TryStartPregnancies()
+    {
+        CleanupInvalidMonogamousPairs();
+        var reservedSlotsBySpecies = new Dictionary<SpeciesType, int>();
 
-    foreach (var speciesGroup in aliveBySpecies)
+        foreach (var habitat in _habitats)
         {
-            var hasEligibleMale = speciesGroup.Any(a =>
-                a.Sex == SexType.Male &&
-                a.CanReproduceToday() &&
-                a.CanReproduceByAge());
+            var females = habitat.Animals
+                .OfType<ZooAnimal>()
+                .Where(a => a.Sex == SexType.Female && a.CanStartGestationToday())
+                .ToList();
 
-            if (!hasEligibleMale) continue;
-
-            foreach (var female in speciesGroup.Where(a => a.Sex == SexType.Female))
+            foreach (var female in females)
             {
-                if (female.CanStartGestationToday())
-                {
-                    female.StartGestation();
-                    AddEvent(
-                        ZooEventType.Pregnancy,
-                        $"{female.Name} started a gestation for species {female.Species}.");
-                }
+                if (!HasEligibleMate(habitat, female))
+                    continue;
+
+                var expectedOffspring = GetExpectedOffspringCount(female);
+                var reservedToday = reservedSlotsBySpecies.GetValueOrDefault(female.Species);
+                if (!HasCapacityForAdditionalOffspring(female.Species, expectedOffspring, reservedToday))
+                    continue;
+
+                female.StartGestation();
+                reservedSlotsBySpecies[female.Species] = reservedToday + expectedOffspring;
+                AddEvent(
+                    ZooEventType.Pregnancy,
+                    $"{female.Name} started a gestation for species {female.Species}.");
             }
         }
-}
+    }
 
-public void TryEggLayingForCurrentMonth()
-{
-    foreach (var female in _animals.Where(a => a.IsAlive && a.Sex == SexType.Female))
+    public void TryEggLayingForCurrentMonth()
+    {
+        CleanupInvalidMonogamousPairs();
+        var reservedSlotsBySpecies = new Dictionary<SpeciesType, int>();
+
+        foreach (var habitat in _habitats)
         {
-            if (!female.CanLayEggThisMonth(CurrentMonth)) continue;
+            var females = habitat.Animals
+                .OfType<ZooAnimal>()
+                .Where(a => a.Sex == SexType.Female && a.CanLayEggThisMonth(CurrentMonth))
+                .ToList();
 
-            var eggsToIncubate = GetEggCountForMonth(female, CurrentMonth);
-            if (eggsToIncubate <= 0) continue;
+            foreach (var female in females)
+            {
+                if (!HasEligibleMate(habitat, female))
+                    continue;
 
-            female.StartEggIncubation(eggsToIncubate, CurrentMonth);
-            AddEvent(
-                ZooEventType.EggLaying,
-                $"{female.Name} laid {eggsToIncubate} egg(s).");
+                var eggsToIncubate = GetEggCountForMonth(female, CurrentMonth);
+                if (eggsToIncubate <= 0)
+                    continue;
+
+                var reservedToday = reservedSlotsBySpecies.GetValueOrDefault(female.Species);
+                if (!HasCapacityForAdditionalOffspring(female.Species, eggsToIncubate, reservedToday))
+                    continue;
+
+                female.StartEggIncubation(eggsToIncubate, CurrentMonth);
+                reservedSlotsBySpecies[female.Species] = reservedToday + eggsToIncubate;
+                AddEvent(
+                    ZooEventType.EggLaying,
+                    $"{female.Name} laid {eggsToIncubate} egg(s).");
+            }
         }
-}
+    }
 
     private sealed record OffspringBatchResult(
         IReadOnlyList<ZooAnimal> Newborns,
@@ -460,25 +498,30 @@ public void TryEggLayingForCurrentMonth()
         int SurvivorCount,
         int InfantDeathCount);
 
-    private OffspringBatchResult CreateOffspringBatch(SpeciesType species, int count, decimal? infantMortalityRate)
+    private OffspringBatchResult CreateOffspringBatch(
+        SpeciesType species,
+        int count,
+        decimal? infantMortalityRate,
+        int availableHabitatSlots)
+    {
+        var survivorCount = ComputeSurvivorsAfterInfantMortality(count, infantMortalityRate);
+        survivorCount = Math.Min(survivorCount, Math.Max(0, availableHabitatSlots));
+
+        var newborns = new List<ZooAnimal>(survivorCount);
+
+        for (var i = 0; i < survivorCount; i++)
         {
-            var survivorCount = ComputeSurvivorsAfterInfantMortality(count, infantMortalityRate);
-
-            var newborns = new List<ZooAnimal>(survivorCount);
-
-            for (var i = 0; i<survivorCount; i++)
-            {
-                var sex = Random.Shared.Next(0,2) == 0 ? SexType.Male : SexType.Female;
-                var name = $"{species}_{Guid.NewGuid():N}";
-                newborns.Add(new ZooAnimal(name, sex, species, ageDays : 0, isHungry: false, isSick: false));
-
-            }
-            return new OffspringBatchResult(
-                newborns,
-                count,
-                survivorCount,
-                count - survivorCount);
+            var sex = Random.Shared.Next(0, 2) == 0 ? SexType.Male : SexType.Female;
+            var name = $"{species}_{Guid.NewGuid():N}";
+            newborns.Add(new ZooAnimal(name, sex, species, ageDays: 0, isHungry: false, isSick: false));
         }
+
+        return new OffspringBatchResult(
+            newborns,
+            count,
+            survivorCount,
+            count - survivorCount);
+    }
 
     private static int ComputeSurvivorsAfterInfantMortality(int newbornCount, decimal? infantMortalityRate)
     {
@@ -520,10 +563,164 @@ public void TryEggLayingForCurrentMonth()
 
         if (female.Profile.EggsPerYear is int eggsPerYear && eggsPerYear > 0)
         {
-            return Math.Max(1, (int)Math.Round(eggsPerYear / 12.0, MidpointRounding.AwayFromZero));
+            var baseEggs = eggsPerYear / 12;
+            var remainder = eggsPerYear % 12;
+            return baseEggs + (month <= remainder ? 1 : 0);
         }
         
         return 0;
+    }
+
+    private void AddNewbornsToZoo(IEnumerable<ZooAnimal> newborns)
+    {
+        foreach (var newborn in newborns)
+        {
+            AddAnimal(newborn);
+            TryPlaceAnimalInHabitat(newborn);
+        }
+    }
+
+    private bool TryPlaceAnimalInHabitat(ZooAnimal animal)
+    {
+        var habitat = _habitats
+            .Where(h => h.Species == animal.Species && h.AvailableSlots > 0)
+            .OrderByDescending(h => h.AvailableSlots)
+            .FirstOrDefault();
+
+        if (habitat is null)
+            return false;
+
+        habitat.AddAnimal(animal);
+        return true;
+    }
+
+    private int GetAvailableHabitatSlots(SpeciesType species)
+    {
+        return _habitats
+            .Where(h => h.Species == species)
+            .Sum(h => h.AvailableSlots);
+    }
+
+    private int GetReservedOffspringSlots(SpeciesType species)
+    {
+        return _animals
+            .Where(a => a.IsAlive && a.Species == species)
+            .Sum(GetReservedOffspringCount);
+    }
+
+    private static int GetReservedOffspringCount(ZooAnimal animal)
+    {
+        if (animal.IsGestating)
+            return animal.Profile.LitterSize ?? 0;
+
+        if (animal.EggIncubationRemainingDays > 0)
+            return animal.PendingEggs;
+
+        return 0;
+    }
+
+    private int GetRemainingHabitatCapacityForSpecies(SpeciesType species, int queuedNewborns)
+    {
+        return Math.Max(0, GetAvailableHabitatSlots(species) - queuedNewborns);
+    }
+
+    private bool HasCapacityForAdditionalOffspring(SpeciesType species, int requiredSlots, int reservedToday)
+    {
+        var remainingSlots = GetAvailableHabitatSlots(species) - GetReservedOffspringSlots(species) - reservedToday;
+        return remainingSlots >= requiredSlots;
+    }
+
+    private static int GetExpectedOffspringCount(ZooAnimal female)
+    {
+        return Math.Max(1, female.Profile.LitterSize ?? 1);
+    }
+
+    private bool HasEligibleMate(Habitat habitat, ZooAnimal female)
+    {
+        if (female.Profile.IsMonogamous)
+        {
+            var partner = GetOrCreateMonogamousPartner(habitat, female);
+            return partner is not null && IsEligibleMaleForReproduction(partner);
+        }
+
+        return habitat.Animals
+            .OfType<ZooAnimal>()
+            .Any(IsEligibleMaleForReproduction);
+    }
+
+    private static bool IsEligibleMaleForReproduction(ZooAnimal animal)
+    {
+        return animal.Sex == SexType.Male
+            && animal.CanReproduceToday()
+            && animal.CanReproduceByAge();
+    }
+
+    private ZooAnimal? GetOrCreateMonogamousPartner(Habitat habitat, ZooAnimal female)
+    {
+        var existingPartner = GetPairedAnimal(female);
+        if (existingPartner is not null)
+        {
+            if (habitat.Animals.Contains(existingPartner) && existingPartner.Species == female.Species)
+                return existingPartner;
+
+            RemovePairing(female.Id);
+        }
+
+        var availableMale = habitat.Animals
+            .OfType<ZooAnimal>()
+            .FirstOrDefault(a =>
+                a.Sex == SexType.Male &&
+                IsEligibleMaleForReproduction(a) &&
+                GetPairedAnimal(a) is null);
+
+        if (availableMale is null)
+            return null;
+
+        RegisterPair(female, availableMale);
+        return availableMale;
+    }
+
+    private ZooAnimal? GetPairedAnimal(ZooAnimal animal)
+    {
+        if (!_monogamousPairs.TryGetValue(animal.Id, out var partnerId))
+            return null;
+
+        return _animals.FirstOrDefault(a => a.Id == partnerId && a.IsAlive);
+    }
+
+    private void RegisterPair(ZooAnimal first, ZooAnimal second)
+    {
+        RemovePairing(first.Id);
+        RemovePairing(second.Id);
+        _monogamousPairs[first.Id] = second.Id;
+        _monogamousPairs[second.Id] = first.Id;
+    }
+
+    private void RemovePairing(Guid animalId)
+    {
+        if (!_monogamousPairs.Remove(animalId, out var partnerId))
+            return;
+
+        _monogamousPairs.Remove(partnerId);
+    }
+
+    private void CleanupInvalidMonogamousPairs()
+    {
+        var aliveAnimalIds = _animals
+            .Where(a => a.IsAlive)
+            .Select(a => a.Id)
+            .ToHashSet();
+
+        foreach (var animalId in _monogamousPairs.Keys.ToList())
+        {
+            if (!_monogamousPairs.TryGetValue(animalId, out var partnerId))
+                continue;
+
+            if (aliveAnimalIds.Contains(animalId) && aliveAnimalIds.Contains(partnerId))
+                continue;
+
+            RemovePairing(animalId);
+        }
     }
 
     //nb jours / mois
@@ -568,7 +765,12 @@ public void TryEggLayingForCurrentMonth()
 
     public IReadOnlyList<ZooAnimal> GetAnimalsExposedToPublic()
     {
-        return _animals
+        var housedAnimals = _habitats
+            .SelectMany(h => h.Animals)
+            .OfType<ZooAnimal>()
+            .Distinct();
+
+        return housedAnimals
             .Where(a => a.IsExposedToPublic())
             .ToList();
     }
@@ -635,6 +837,7 @@ public void TryEggLayingForCurrentMonth()
     private void ProcessMonthlyTurn()
     {
         TryApplyMonthlyExceptionalEvents(CurrentDayOfMonth);
+        ProgressMonthlyReproductionCooldowns();
         TryEggLayingForCurrentMonth();
         
         foreach (var habitat in _habitats)
@@ -664,6 +867,12 @@ public void TryEggLayingForCurrentMonth()
         }
 
         CollectMonthlyVisitorRevenue();
+    }
+
+    private void ProgressMonthlyReproductionCooldowns()
+    {
+        foreach (var animal in _animals.Where(a => a.IsAlive))
+            animal.ProgressReproductionOneMonth();
     }
 
     private decimal CollectMonthlyVisitorRevenue()

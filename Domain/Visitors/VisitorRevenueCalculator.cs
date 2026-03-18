@@ -8,8 +8,13 @@ public sealed class VisitorRevenueCalculator
 {
     private readonly VisitorPricing _pricing = new();
     private readonly VisitorFlow _flow = new();
+    private readonly Random _random;
 
-    //calcule les revenus par espece
+    public VisitorRevenueCalculator(Random? random = null)
+    {
+        _random = random ?? Random.Shared;
+    }
+
     public IReadOnlyDictionary<SpeciesType, decimal> CalculateBySpecies(
         IEnumerable<ZooAnimal> exposedAnimals,
         bool isHighSeason)
@@ -18,6 +23,6 @@ public sealed class VisitorRevenueCalculator
             .GroupBy(a => a.Species)
             .ToDictionary(
                 g => g.Key,
-                g => g.Count() * _flow.GetVisitorsPerAnimal(g.Key, isHighSeason) * _pricing.GroupRevenue);
+                g => g.Count() * _flow.GetVisitorsPerAnimal(g.Key, isHighSeason, _random) * _pricing.GroupRevenue);
     }
 }

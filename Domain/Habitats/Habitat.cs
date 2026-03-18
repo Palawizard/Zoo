@@ -87,28 +87,12 @@ public class Habitat
 
     /// Simule les événements mensuels : pertes naturelles puis surpopulation.
     public HabitatMonthlyOutcome ProcessMonth(Random random)
-{
-    var newlySickAnimals = ProcessSickness(random);
-    var naturalLosses = new List<Animal>();
-
-    for (int i = 0; i < MonthlyLossCount; i++)
     {
-        var candidates = Animals.Where(a => a.IsAlive).ToList();
-        if (candidates.Count == 0) break;
+        var newlySickAnimals = ProcessSickness(random);
+        var overpopulationLosses = ProcessOverpopulation(random);
 
-        if (random.NextDouble() < (double)LossProbability)
-        {
-            var victim = candidates[random.Next(candidates.Count)];
-            victim.Kill();
-            Animals.Remove(victim);
-            naturalLosses.Add(victim);
-        }
+        return new HabitatMonthlyOutcome(Array.Empty<Animal>(), overpopulationLosses, newlySickAnimals);
     }
-
-    var overpopulationLosses = ProcessOverpopulation(random);
-
-    return new HabitatMonthlyOutcome(naturalLosses, overpopulationLosses, newlySickAnimals);
-}
 
     /// Pour chaque animal en excès de capacité, 50% de chance qu'il meure.
     private IReadOnlyList<Animal> ProcessOverpopulation(Random random)
@@ -116,23 +100,22 @@ public class Habitat
         var lost = new List<Animal>();
         const double OverpopulationDeathChance = 0.5;
 
-        while (Animals.Count > Capacity)
+        if (Animals.Count <= Capacity)
+            return lost;
+
+        for (var attempt = 0; attempt < MonthlyLossCount && Animals.Count > Capacity; attempt++)
         {
-            var excess = Animals.Where(a => a.IsAlive).ToList();
-            if (excess.Count == 0) break;
+            var candidates = Animals.Where(a => a.IsAlive).ToList();
+            if (candidates.Count == 0)
+                break;
 
-            var victim = excess[random.Next(excess.Count)];
+            if (random.NextDouble() >= OverpopulationDeathChance)
+                continue;
 
-            if (random.NextDouble() < OverpopulationDeathChance)
-            {
-                victim.Kill();
-                Animals.Remove(victim);
-                lost.Add(victim);
-            }
-            else
-            {
-                break; // Sauver ce mois ci
-            }
+            var victim = candidates[random.Next(candidates.Count)];
+            victim.Kill();
+            Animals.Remove(victim);
+            lost.Add(victim);
         }
 
         return lost;
