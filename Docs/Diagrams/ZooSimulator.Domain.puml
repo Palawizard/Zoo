@@ -10,41 +10,41 @@ title Zoo Simulator - Domain (Animals + Habitats)
 
 package "Domain.Animals" {
   abstract class Animal {
-    +id : Guid
-    +species : SpeciesType
-    +sex : Sex
-    +ageDays : int
-    +isAlive : bool
-    +isHungry : bool
-    +isSick : bool
+    +Name : string
+    +Species : SpeciesType
+    +Sex : SexType
+    +AgeDays : int
+    +IsAlive : bool
+    +IsHungry : bool
+    +IsSick : bool
+    +IsGestating : bool
+    +GetDailyFoodNeedKg() : decimal
+    +AdvanceOneDay() : AnimalDailyOutcome
   }
 
-  class Tiger
-  class Eagle
-  class Chicken
-
-  class Female {
-    +isGestating : bool
-    +gestationRemainingDays : int
-  }
+  class ZooAnimal
 
   class AnimalProfile {
-    +foodType : FoodType
-    +dailyFoodKg : decimal
-    +daysBeforeHungry : int
-    +sexualMaturityDays : int
-    +reproductionEndDays : int
-    +lifeExpectancyDays : int
-    +infantMortalityRate : decimal
+    +DailyFoodKg : decimal
+    +DaysBeforeHungry : int
+    +SexualMaturityDays : int
+    +GestationDays : int?
+    +ReproductionEndDays : int
+    +InfantMortalityRate : decimal?
+    +LifeExpectancyDays : int
+    +AnnualDiseaseProbability : decimal
+    +BaseDiseaseDurationDays : int
   }
+
+  class AnimalDailyOutcome
 
   enum SpeciesType {
     Tiger
     Eagle
-    Chicken
+    Rooster
   }
 
-  enum Sex {
+  enum SexType {
     Male
     Female
   }
@@ -52,24 +52,30 @@ package "Domain.Animals" {
 
 package "Domain.Habitats" {
   class Habitat {
-    +id : Guid
-    +type : HabitatType
-    +capacity : int
-    +purchasePrice : decimal
-    +sellPrice : decimal
-    +monthlyOverpopulationLoss : int
-    +monthlyDiseaseProbability : decimal
+    +Species : SpeciesType
+    +Capacity : int
+    +Animals : List<Animal>
+    +AvailableSlots : int
+    +HealthRatio : decimal
+    +ProcessMonth(random) : HabitatMonthlyOutcome
   }
 
-  class HabitatOccupancy {
-    +habitatId : Guid
-    +animalIds : List<Guid>
+  class HabitatProfile {
+    +BuyPrice : decimal
+    +SellPrice : decimal
+    +Capacity : int
+    +MonthlyLossCount : int
+    +LossProbability : decimal
   }
 
-  enum HabitatType {
-    TigerEnclosure
-    EagleAviary
-    ChickenCoop
+  class HabitatMonthlyOutcome
+}
+
+package "Domain.Health" {
+  enum HealthStatus {
+    Healthy
+    Sick
+    Dead
   }
 }
 
@@ -78,16 +84,24 @@ enum FoodType {
   Seeds
 }
 
-Tiger --|> Animal
-Eagle --|> Animal
-Chicken --|> Animal
-Female --|> Animal
+ZooAnimal --|> Animal
 Animal --> AnimalProfile
-Animal ..> SpeciesType
-Animal ..> Sex
-AnimalProfile ..> FoodType
+Animal --> HealthStatus
+Animal --> SpeciesType
+Animal --> SexType
+Animal --> FoodType
+Animal --> AnimalDailyOutcome
 
-Habitat *-- HabitatOccupancy
-Habitat ..> HabitatType
-HabitatOccupancy o-- "0..*" Animal
+Habitat --> HabitatProfile
+Habitat o-- "0..*" Animal
+Habitat --> HabitatMonthlyOutcome
+Habitat --> SpeciesType
+
+note bottom of Animal
+Core rules live directly on Animal:
+- hunger threshold
+- gestation / egg incubation
+- disease progression
+- old age death
+end note
 @enduml

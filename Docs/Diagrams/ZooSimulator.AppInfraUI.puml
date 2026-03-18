@@ -6,87 +6,53 @@ skinparam linetype ortho
 skinparam dpi 120
 top to bottom direction
 
-title Zoo Simulator - Application + Infrastructure + Console UI
+title Zoo Simulator - Application and Console UI
 
-class ZooState
-class Animal
-class TurnReport
-
-package "Application" {
-  class ZooSimulationService {
-    +nextTurn() : TurnReport
-    +buyAnimal() : bool
-    +sellAnimal() : bool
-    +buyFood() : bool
-    +buyHabitat() : bool
-    +sellHabitat() : bool
+package "Presentation.ConsoleApp" {
+  class Program
+  class ZooConsoleApp {
+    +Run() : void
   }
 
-  class RuleEngine {
-    +processDay(state : ZooState) : void
-    +processMonth(state : ZooState) : TurnReport
-  }
-}
+  class ConsoleInput
+  class ZooConsolePrinter
 
-package "Infrastructure" {
-  interface IRandomProvider {
-    +nextDouble() : double
-    +nextInt(min : int, max : int) : int
-  }
-
-  class DefaultRandomProvider
-
-  interface IGameRepository {
-    +save(slot : string, state : ZooState) : void
-    +load(slot : string) : ZooState
-  }
-
-  class JsonGameRepository
-}
-
-package "Presentation.Console" {
-  class ConsoleApp {
-    +run() : void
-  }
-
-  class MainMenu {
-    +show() : MenuChoice
-  }
-
-  class GameScreen {
-    +renderState(state : ZooState) : void
-    +renderTurnReport(report : TurnReport) : void
-  }
-
-  class AsciiRenderer {
-    +drawZoo(state : ZooState) : string
-    +drawAnimal(animal : Animal) : string
-  }
-
-  enum MenuChoice {
-    BuyAnimal
-    SellAnimal
-    BuyFood
+  enum MenuOption {
+    AdvanceTurn
+    Canteen
+    AddAnimal
     BuyHabitat
+    SellAnimal
     SellHabitat
-    NextTurn
-    Save
-    Load
+    ShowStatus
     Quit
   }
 }
 
-DefaultRandomProvider ..|> IRandomProvider
-JsonGameRepository ..|> IGameRepository
+package "Application.Simulation" {
+  class ZooSimulationService {
+    +NextTurn() : void
+    +BuyAnimal() : bool
+    +SellAnimal() : bool
+    +BuyFood() : bool
+    +BuyHabitat() : bool
+    +SellHabitat() : bool
+  }
+}
 
-ZooSimulationService ..> RuleEngine
-ZooSimulationService ..> IGameRepository
-ZooSimulationService ..> IRandomProvider
-ZooSimulationService ..> ZooState
+package "Domain.Events" {
+  class ZooEvent
+}
 
-ConsoleApp ..> MainMenu
-ConsoleApp ..> GameScreen
-ConsoleApp ..> ZooSimulationService
-GameScreen ..> AsciiRenderer
-MainMenu ..> MenuChoice
+Program --> ZooConsoleApp
+ZooConsoleApp --> ConsoleInput
+ZooConsoleApp --> ZooConsolePrinter
+ZooConsoleApp --> ZooSimulationService
+ZooConsolePrinter ..> ZooEvent
+ZooConsoleApp ..> MenuOption
+
+note bottom
+Infrastructure folders are currently placeholders.
+The active UI path is the interactive console application.
+end note
 @enduml
