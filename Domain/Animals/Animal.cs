@@ -19,6 +19,7 @@ public abstract class Animal
     public int EggIncubationRemainingDays { get; protected set; }
     public int DiseaseRemainingDays { get; private set; }
     public int AdultArrivalReproductionBlockRemainingDays { get; private set; }
+    public int MonthsUntilNextLitter { get; private set; }
 
     private const int AdultArrivalReproductionBlockDays = 30;
     private const decimal GestatingFemaleFoodMultiplier = 2m;
@@ -47,6 +48,7 @@ public abstract class Animal
         PendingEggs = 0;
         EggIncubationRemainingDays = 0;
         DiseaseRemainingDays = 0;
+        MonthsUntilNextLitter = 0;
 
         if (isSick)
             StartDisease();
@@ -159,6 +161,8 @@ public abstract class Animal
             && !IsSick
             && CanReproduceByAge()
             && !IsGestating
+            && !IsEggLayer()
+            && CanStartNewLitter()
             && Profile.GestationDays is > 0
             && !IsBlockedFromReproductionByArrival();
     }
@@ -203,6 +207,8 @@ public abstract class Animal
             && !IsHungry
             && !IsSick
             && CanReproduceByAge()
+            && IsEggLayer()
+            && CanStartNewLitter()
             && !IsBlockedFromReproductionByArrival();
 
         if (!canLay)
@@ -253,6 +259,17 @@ public abstract class Animal
             HasReachedSexualMaturity() ? AdultArrivalReproductionBlockDays : 0;
     }
 
+    public void ProgressReproductionOneMonth()
+    {
+        if (MonthsUntilNextLitter > 0)
+            MonthsUntilNextLitter--;
+    }
+
+    public void RegisterBirthCycleCompleted()
+    {
+        MonthsUntilNextLitter = Math.Max(0, Profile.MinMonthsBetweenLitters ?? 0);
+    }
+
     public void ProgressArrivalReproductionBlockOneDay()
     {
         if (AdultArrivalReproductionBlockRemainingDays > 0)
@@ -267,6 +284,16 @@ public abstract class Animal
     public bool IsExposedToPublic()
     {
         return IsAlive && !IsGestating;
+    }
+
+    private bool IsEggLayer()
+    {
+        return Profile.EggsPerYear is > 0 || Profile.EggLayingMonth is not null;
+    }
+
+    private bool CanStartNewLitter()
+    {
+        return MonthsUntilNextLitter == 0;
     }
 
     private void StartDisease()

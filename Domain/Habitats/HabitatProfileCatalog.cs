@@ -19,7 +19,7 @@ public static class HabitatProfileCatalog
             new HabitatProfile(
                 SpeciesType.Eagle,
                 2000m,
-                1000m,
+                500m,
                 4,
                 1,
                 0.1m)

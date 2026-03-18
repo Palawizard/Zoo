@@ -1,6 +1,7 @@
 using Zoo.Application.Simulation;
 using Zoo.Domain.Animals;
 using Zoo.Domain.Feeding;
+using Zoo.Domain.Habitats;
 
 namespace Zoo.Tests.Unit;
 
@@ -33,5 +34,13 @@ public sealed class EconomyRulesTests
         Assert.Empty(simulation.Habitats);
         Assert.Equal(1000m, simulation.Cash);
         Assert.Single(simulation.Ledger.Transactions);
+    }
+
+    [Fact]
+    public void EagleHabitatUsesSpecifiedSellPrice()
+    {
+        var habitat = HabitatFactory.Create(SpeciesType.Eagle);
+
+        Assert.Equal(500m, habitat.SellPrice);
     }
 }
