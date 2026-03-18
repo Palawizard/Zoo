@@ -6,65 +6,62 @@ skinparam linetype ortho
 skinparam dpi 120
 top to bottom direction
 
-title Zoo Simulator - Rules (Reproduction + Disease)
+title Zoo Simulator - Rules
 
-class ZooState
-class Animal
-class Habitat
+package "Domain.Animals" {
+  class Animal {
+    +CanReproduceToday() : bool
+    +CanStartGestationToday() : bool
+    +CanLayEggThisMonth(month) : bool
+    +TryCatchDiseaseToday() : bool
+    +ContractSickness(random) : bool
+  }
+
+  class AnimalProfile {
+    +DaysBeforeHungry : int
+    +GestationDays : int?
+    +InfantMortalityRate : decimal?
+    +AnnualDiseaseProbability : decimal
+    +BaseDiseaseDurationDays : int
+  }
+}
 
 package "Domain.Reproduction" {
   class ReproductionRules {
-    +requiresNoHunger : bool
-    +requiresNoDisease : bool
-    +requiresFreeSpace : bool
-    +femaleFoodMultiplierDuringGestation : decimal
-    +noAdultReproductionFirstArrivalMonth : bool
+    +NoAdultReproductionFirstArrivalMonth : bool
   }
 
   class ReproductionService {
-    +tryReproduction(state : ZooState) : void
-    +processBirths(state : ZooState) : void
-    +applyInfantMortality(state : ZooState) : void
+    +ProcessGestations(animals) : List<ZooAnimal>
+    +ProcessEggIncubations(animals) : List<ZooAnimal>
+    +TryStartPregnancies(animals) : void
+    +TryEggLayingForCurrentMonth(animals, month) : void
   }
 }
 
-package "Domain.Health" {
-  enum SpeciesType {
-    Tiger
-    Eagle
-    Chicken
-  }
-
-  class DiseaseProfile {
-    +species : SpeciesType
-    +annualProbability : decimal
-    +baseDurationDays : int
-    +durationVariationRate : decimal
-    +mortalityRate : decimal
-  }
-
-  class DiseaseService {
-    +rollDiseases(state : ZooState) : void
-    +processDiseaseProgress(state : ZooState) : void
+package "Application.Simulation" {
+  class ZooSimulationService {
+    +ProcessDailyFeeding() : void
+    +ProcessGestations() : void
+    +ProcessEggIncubations() : void
+    +TryStartPregnancies() : void
+    +TryApplyMonthlyExceptionalEvents(dayOfMonth) : void
   }
 }
 
-ReproductionService ..> ReproductionRules
-ReproductionService ..> ZooState
+Animal --> AnimalProfile
+ReproductionService --> ReproductionRules
 ReproductionService ..> Animal
-ReproductionService ..> Habitat
+ZooSimulationService ..> Animal
+ZooSimulationService ..> ReproductionService
 
-DiseaseService ..> DiseaseProfile
-DiseaseService ..> ZooState
-DiseaseService ..> Animal
-DiseaseProfile ..> SpeciesType
-
-note bottom of ReproductionRules
-Business constraints:
-- no reproduction if hungry
-- no reproduction if sick
-- female loses fetus if hungry
-- female food x2 during gestation
-- free slot required for offspring
+note bottom of Animal
+Critical business rules:
+- reproduction blocked if hungry or sick
+- gestating female food need x2
+- hungry female loses fetus
+- adult arrival reproduction block = 30 days
+- disease duration varies by +/-20%
+- disease mortality = 10%
 end note
 @enduml
