@@ -37,12 +37,18 @@ public sealed class AnimalRow
     public IBrush MarkerBrush => Animal.IsAlive
         ? Animal.IsGestating || Animal.EggIncubationRemainingDays > 0
             ? UiBrushes.Info
-            : Animal.IsHungry || Animal.IsSick
-                ? UiBrushes.Warning
+            : Animal.IsHungry
+                ? UiBrushes.Hungry
+                : Animal.IsSick
+                    ? UiBrushes.Warning
                 : UiBrushes.Success
         : UiBrushes.Danger;
     public IBrush StatusBrush => Animal.IsAlive
-        ? Animal.IsSick || Animal.IsHungry ? UiBrushes.Warning : UiBrushes.Success
+        ? Animal.IsHungry
+            ? UiBrushes.Hungry
+            : Animal.IsSick
+                ? UiBrushes.Warning
+                : UiBrushes.Success
         : UiBrushes.Danger;
 }
 
@@ -156,6 +162,7 @@ internal static class UiBrushes
 {
     public static readonly IBrush Success = Brush.Parse("#2EC4B6");
     public static readonly IBrush Warning = Brush.Parse("#7CC6FE");
+    public static readonly IBrush Hungry = Brush.Parse("#D3BB63");
     public static readonly IBrush Danger = Brush.Parse("#FF6B6B");
     public static readonly IBrush Info = Brush.Parse("#5AA9FF");
     public static readonly IBrush Muted = Brush.Parse("#93A4B7");

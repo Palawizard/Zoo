@@ -29,7 +29,7 @@
                 <Border Classes="panel" Margin="0,0,18,18" Width="820">
                     <StackPanel Spacing="12">
                         <TextBlock Classes="eyebrow" Text="Zoo Manager" />
-                        <TextBlock FontFamily="Georgia"
+                        <TextBlock FontFamily="Inter"
                                    FontSize="42"
                                    FontWeight="Bold"
                                    Text="Dashboard"
@@ -41,11 +41,11 @@
 
                         <WrapPanel>
                             <Border Classes="listCard" Margin="0,0,10,10" Padding="12,8">
-                                <TextBlock FontWeight="SemiBold" Text="{Binding HeaderDate}" />
+                                <TextBlock FontWeight="SemiBold" Text="{Binding HeaderDate}" TextWrapping="Wrap" />
                             </Border>
                             <Border Classes="listCard" Margin="0,0,10,10" Padding="12,8">
                                 <StackPanel Spacing="2">
-                                    <TextBlock FontWeight="SemiBold" Text="{Binding SeasonLabel}" />
+                                    <TextBlock FontWeight="SemiBold" Text="{Binding SeasonLabel}" TextWrapping="Wrap" />
                                     <TextBlock Classes="muted" Text="{Binding SeasonDetail}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
@@ -116,7 +116,7 @@
                 <Border Classes="metricCard" Margin="0,0,14,14" Width="250">
                     <StackPanel Spacing="6">
                         <TextBlock Classes="eyebrow" Text="Cash" />
-                        <TextBlock Classes="metricValue" Text="{Binding CashMetric}" />
+                        <TextBlock Classes="metricValue" Text="{Binding CashMetric}" TextWrapping="Wrap" />
                         <TextBlock Classes="muted" Text="{Binding CashCaption}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
@@ -124,7 +124,7 @@
                 <Border Classes="metricCard" Margin="0,0,14,14" Width="250">
                     <StackPanel Spacing="6">
                         <TextBlock Classes="eyebrow" Text="Food stock" />
-                        <TextBlock Classes="metricValue" Text="{Binding FoodMetric}" FontSize="24" />
+                        <TextBlock Classes="metricValue" Text="{Binding FoodMetric}" FontSize="24" TextWrapping="Wrap" />
                         <TextBlock Classes="muted" Text="{Binding FoodCaption}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
@@ -132,7 +132,7 @@
                 <Border Classes="metricCard" Margin="0,0,14,14" Width="250">
                     <StackPanel Spacing="6">
                         <TextBlock Classes="eyebrow" Text="Population" />
-                        <TextBlock Classes="metricValue" Text="{Binding PopulationMetric}" FontSize="24" />
+                        <TextBlock Classes="metricValue" Text="{Binding PopulationMetric}" FontSize="24" TextWrapping="Wrap" />
                         <TextBlock Classes="muted" Text="{Binding PopulationCaption}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
@@ -140,7 +140,7 @@
                 <Border Classes="metricCard" Margin="0,0,14,14" Width="250">
                     <StackPanel Spacing="6">
                         <TextBlock Classes="eyebrow" Text="Public exposure" />
-                        <TextBlock Classes="metricValue" Text="{Binding ExposureMetric}" />
+                        <TextBlock Classes="metricValue" Text="{Binding ExposureMetric}" TextWrapping="Wrap" />
                         <TextBlock Classes="muted" Text="{Binding ExposureCaption}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
@@ -148,7 +148,7 @@
                 <Border Classes="metricCard" Margin="0,0,0,14" Width="250">
                     <StackPanel Spacing="6">
                         <TextBlock Classes="eyebrow" Text="Projected revenue" />
-                        <TextBlock Classes="metricValue" Text="{Binding RevenueMetric}" />
+                        <TextBlock Classes="metricValue" Text="{Binding RevenueMetric}" TextWrapping="Wrap" />
                         <TextBlock Classes="muted" Text="{Binding RevenueCaption}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
@@ -235,7 +235,7 @@
                                         <DataTemplate x:DataType="local:LedgerRow">
                                             <Border Classes="listCard" Margin="0,0,0,10">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                                    <StackPanel Spacing="4">
+                                                    <StackPanel Spacing="4" MinWidth="0">
                                                         <TextBlock FontWeight="SemiBold" Text="{Binding Description}" TextWrapping="Wrap" />
                                                         <TextBlock Classes="muted" Text="{Binding Meta}" TextWrapping="Wrap" />
                                                     </StackPanel>
@@ -243,10 +243,12 @@
                                                         <TextBlock FontWeight="Bold"
                                                                    Foreground="{Binding AmountBrush}"
                                                                    HorizontalAlignment="Right"
-                                                                   Text="{Binding Amount}" />
+                                                                   Text="{Binding Amount}"
+                                                                   TextWrapping="Wrap" />
                                                         <TextBlock Classes="muted"
                                                                    HorizontalAlignment="Right"
-                                                                   Text="{Binding Balance}" />
+                                                                   Text="{Binding Balance}"
+                                                                   TextWrapping="Wrap" />
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -290,8 +292,9 @@
                                 <ComboBox ItemsSource="{Binding SexOptions}" SelectedItem="{Binding SelectedAnimalSex, Mode=TwoWay}" />
                                 <TextBox Watermark="Age in days"
                                          Text="{Binding AnimalAgeInput, Mode=TwoWay}" />
-                                <CheckBox Content="Auto-buy habitat if needed"
-                                          IsChecked="{Binding AutoBuyHabitatForAnimal, Mode=TwoWay}" />
+                                <CheckBox IsChecked="{Binding AutoBuyHabitatForAnimal, Mode=TwoWay}">
+                                    <TextBlock Text="Auto-buy habitat if needed" TextWrapping="Wrap" />
+                                </CheckBox>
                                 <Button Classes="primary" Click="HandleBuyAnimal" Content="Buy animal" />
                             </StackPanel>
                         </Border>
@@ -330,19 +333,24 @@
                                 <DataTemplate x:DataType="local:AnimalRow">
                                     <Border Classes="listCard" Margin="0,0,0,10">
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
-                                            <StackPanel Spacing="4">
+                                            <StackPanel Spacing="4" MinWidth="0">
                                                 <WrapPanel>
-                                                    <TextBlock Margin="0,0,8,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Name}" />
+                                                    <TextBlock Margin="0,0,8,0"
+                                                               FontSize="18"
+                                                               FontWeight="SemiBold"
+                                                               Text="{Binding Name}"
+                                                               TextWrapping="Wrap" />
                                                     <Border Background="{Binding MarkerBrush}"
                                                             CornerRadius="999"
                                                             Padding="8,2">
                                                         <TextBlock Foreground="White"
                                                                    FontSize="12"
                                                                    FontWeight="Bold"
-                                                                   Text="{Binding Marker}" />
+                                                                   Text="{Binding Marker}"
+                                                                   TextWrapping="Wrap" />
                                                     </Border>
                                                 </WrapPanel>
-                                                <TextBlock Classes="muted" Text="{Binding Secondary}" />
+                                                <TextBlock Classes="muted" Text="{Binding Secondary}" TextWrapping="Wrap" />
                                                 <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" />
                                             </StackPanel>
 
@@ -350,10 +358,12 @@
                                                 <TextBlock FontWeight="SemiBold"
                                                            Foreground="{Binding StatusBrush}"
                                                            HorizontalAlignment="Right"
-                                                           Text="{Binding Status}" />
+                                                           Text="{Binding Status}"
+                                                           TextWrapping="Wrap" />
                                                 <TextBlock Classes="muted"
                                                            HorizontalAlignment="Right"
-                                                           Text="{Binding FoodNeed}" />
+                                                           Text="{Binding FoodNeed}"
+                                                           TextWrapping="Wrap" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -381,22 +391,25 @@
                                     <DataTemplate x:DataType="local:HabitatRow">
                                         <Border Classes="listCard" Margin="0,0,0,10">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
-                                                <StackPanel Spacing="4">
-                                                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="{Binding Title}" />
+                                                <StackPanel Spacing="4" MinWidth="0">
+                                                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="{Binding Title}" TextWrapping="Wrap" />
                                                     <TextBlock Classes="muted" Text="{Binding Detail}" TextWrapping="Wrap" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="6">
                                                     <TextBlock FontSize="18"
                                                                FontWeight="Bold"
                                                                HorizontalAlignment="Right"
-                                                               Text="{Binding Occupancy}" />
+                                                               Text="{Binding Occupancy}"
+                                                               TextWrapping="Wrap" />
                                                     <TextBlock Foreground="{Binding HealthBrush}"
                                                                FontWeight="SemiBold"
                                                                HorizontalAlignment="Right"
-                                                               Text="{Binding HealthLabel}" />
+                                                               Text="{Binding HealthLabel}"
+                                                               TextWrapping="Wrap" />
                                                     <TextBlock Foreground="{Binding SellabilityBrush}"
                                                                HorizontalAlignment="Right"
-                                                               Text="{Binding Sellability}" />
+                                                               Text="{Binding Sellability}"
+                                                               TextWrapping="Wrap" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
@@ -438,16 +451,17 @@
                                     <DataTemplate x:DataType="local:RevenueRow">
                                         <Border Classes="listCard" Margin="0,0,0,10">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                <StackPanel Spacing="3">
-                                                    <TextBlock FontSize="17" FontWeight="SemiBold" Text="{Binding Title}" />
-                                                    <TextBlock Classes="muted" Text="{Binding Detail}" />
+                                                <StackPanel Spacing="3" MinWidth="0">
+                                                    <TextBlock FontSize="17" FontWeight="SemiBold" Text="{Binding Title}" TextWrapping="Wrap" />
+                                                    <TextBlock Classes="muted" Text="{Binding Detail}" TextWrapping="Wrap" />
                                                 </StackPanel>
                                                 <TextBlock Grid.Column="1"
                                                            FontSize="18"
                                                            FontWeight="Bold"
                                                            Foreground="{Binding AccentBrush}"
                                                            VerticalAlignment="Center"
-                                                           Text="{Binding Value}" />
+                                                           Text="{Binding Value}"
+                                                           TextWrapping="Wrap" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>

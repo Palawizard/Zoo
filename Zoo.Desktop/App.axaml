@@ -81,7 +81,7 @@
         </Style>
 
         <Style Selector="TextBlock.metricValue">
-            <Setter Property="FontFamily" Value="Georgia" />
+            <Setter Property="FontFamily" Value="Inter" />
             <Setter Property="FontSize" Value="32" />
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
@@ -130,6 +130,62 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
             <Setter Property="MinHeight" Value="42" />
+        </Style>
+
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="ListBoxItem:pointerover Border.listCard">
+            <Setter Property="Background" Value="#1A2A3B" />
+            <Setter Property="BorderBrush" Value="#35506C" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected Border.listCard">
+            <Setter Property="Background" Value="#1C3142" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BoxShadow" Value="0 0 0 2 #202EC4B6" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected:pointerover Border.listCard">
+            <Setter Property="Background" Value="#21394C" />
+            <Setter Property="BorderBrush" Value="#56D9CC" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected:focus-visible Border.listCard">
+            <Setter Property="Background" Value="#21394C" />
+            <Setter Property="BorderBrush" Value="#7AE7DD" />
+            <Setter Property="BoxShadow" Value="0 0 0 3 #282EC4B6" />
         </Style>
 
         <Style Selector="TabItem">
