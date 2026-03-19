@@ -20,6 +20,7 @@ public sealed class ZooSimulationService
     private readonly List<Habitat> _habitats = new();
     private readonly List<ZooEvent> _events = new();
     private readonly Dictionary<Guid, Guid> _monogamousPairs = new();
+    private readonly Queue<Guid> _pendingNewbornNaming = new();
     private int _lastExceptionalEventsMonth = -1;
     private readonly VisitorRevenueCalculator _visitorRevenueCalculator = new();
     private readonly bool _interactiveHabitatEmergencies;
@@ -118,6 +119,38 @@ public sealed class ZooSimulationService
 
         var basePrice = _animalMarket.SellAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
         return animal.IsAlive ? basePrice : decimal.Round(basePrice * DeadAnimalSaleMultiplier, 2);
+    }
+
+    public ZooAnimal? PeekNewbornAwaitingName()
+    {
+        CleanupPendingNewbornNaming();
+
+        return _pendingNewbornNaming.TryPeek(out var animalId)
+            ? _animals.FirstOrDefault(animal => animal.Id == animalId)
+            : null;
+    }
+
+    public bool TryFinalizeNextNewbornNaming(string? chosenName, out ZooAnimal? newborn, out string failureReason)
+    {
+        CleanupPendingNewbornNaming();
+
+        newborn = null;
+        failureReason = string.Empty;
+
+        while (_pendingNewbornNaming.TryDequeue(out var animalId))
+        {
+            newborn = _animals.FirstOrDefault(animal => animal.Id == animalId);
+            if (newborn is null)
+                continue;
+
+            if (!string.IsNullOrWhiteSpace(chosenName))
+                newborn.Rename(chosenName);
+
+            return true;
+        }
+
+        failureReason = "No newborn is waiting for a name.";
+        return false;
     }
 
     public bool BuyHabitat(SpeciesType species)
@@ -235,24 +268,27 @@ public sealed class ZooSimulationService
             var dailyOutcome = animal.AdvanceOneDay();
             if (dailyOutcome.DiedOfOldAge)
             {
-                RemoveAnimalFromHabitats(animal);
                 AddEvent(
                     ZooEventType.EndOfLife,
                     $"{animal.Name} died of old age.");
             }
             else if (dailyOutcome.DiedOfDisease)
             {
-                RemoveAnimalFromHabitats(animal);
                 AddEvent(
                     ZooEventType.DiseaseDeath,
                     $"{animal.Name} died from disease.");
             }
             else if (dailyOutcome.DiedOfHunger)
             {
-                RemoveAnimalFromHabitats(animal);
                 AddEvent(
                     ZooEventType.HungerDeath,
                     $"{animal.Name} died from starvation.");
+            }
+            else if (dailyOutcome.RecoveredFromDisease)
+            {
+                AddEvent(
+                    ZooEventType.DiseaseRecovered,
+                    $"{animal.Name} recovered from disease.");
             }
 
             if (animal.TryCatchDiseaseToday())
@@ -391,6 +427,7 @@ public sealed class ZooSimulationService
             var availableHabitatSlots = GetRemainingHabitatCapacityForSpecies(female.Species, queuedForSpecies);
             var batch = CreateOffspringBatch(
                 female.Species,
+                female.Name,
                 bornCount,
                 female.Profile.InfantMortalityRate,
                 availableHabitatSlots);
@@ -431,6 +468,7 @@ public sealed class ZooSimulationService
             var availableHabitatSlots = GetRemainingHabitatCapacityForSpecies(female.Species, queuedForSpecies);
             var batch = CreateOffspringBatch(
                 female.Species,
+                female.Name,
                 hatchedCount,
                 female.Profile.InfantMortalityRate,
                 availableHabitatSlots);
@@ -528,6 +566,7 @@ public sealed class ZooSimulationService
 
     private OffspringBatchResult CreateOffspringBatch(
         SpeciesType species,
+        string parentName,
         int count,
         decimal? infantMortalityRate,
         int availableHabitatSlots)
@@ -540,7 +579,7 @@ public sealed class ZooSimulationService
         for (var i = 0; i < survivorCount; i++)
         {
             var sex = Random.Shared.Next(0, 2) == 0 ? SexType.Male : SexType.Female;
-            var name = $"{species}_{Guid.NewGuid():N}";
+            var name = BuildTemporaryNewbornName(species, parentName, i + 1);
             newborns.Add(new ZooAnimal(name, sex, species, ageDays: 0, isHungry: false, isSick: false));
         }
 
@@ -599,12 +638,35 @@ public sealed class ZooSimulationService
         return 0;
     }
 
+    private static string BuildTemporaryNewbornName(SpeciesType species, string parentName, int order)
+    {
+        var label = species switch
+        {
+            SpeciesType.Tiger => "Cub",
+            SpeciesType.Eagle => "Eaglet",
+            SpeciesType.Rooster => "Chick",
+            _ => "Child"
+        };
+
+        return $"{label} of {parentName} {order}";
+    }
+
     private void AddNewbornsToZoo(IEnumerable<ZooAnimal> newborns)
     {
         foreach (var newborn in newborns)
         {
             AddAnimal(newborn);
+            _pendingNewbornNaming.Enqueue(newborn.Id);
             TryPlaceAnimalInHabitat(newborn);
+        }
+    }
+
+    private void CleanupPendingNewbornNaming()
+    {
+        while (_pendingNewbornNaming.TryPeek(out var animalId) &&
+               !_animals.Any(animal => animal.Id == animalId && animal.IsAlive))
+        {
+            _pendingNewbornNaming.Dequeue();
         }
     }
 

@@ -41,6 +41,14 @@ public abstract class Animal
         EggIncubationRemainingDays = 0;
         DiseaseRemainingDays = 0;
     }
+    public void Rename(string name)
+    {
+        var trimmedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+            throw new ArgumentException("Animal name cannot be empty.", nameof(name));
+
+        Name = trimmedName;
+    }
     public void Heal() => Health = HealthStatus.Healthy;
     
     private const decimal DiseaseDeathProbability = 0.10m;
@@ -101,11 +109,15 @@ public abstract class Animal
 
         AgeDays++;
         ProgressArrivalReproductionBlockOneDay();
+        var wasSick = IsSick;
         if (ProgressDiseaseOneDay())
             return new AnimalDailyOutcome(DiedOfDisease: true);
 
         if (!IsAlive)
             return new AnimalDailyOutcome();
+
+        if (wasSick && !IsSick)
+            return new AnimalDailyOutcome(RecoveredFromDisease: true);
 
         if (HasReachedStarvationDeathThreshold())
         {

@@ -24,7 +24,7 @@ public sealed class ReproductionService
             var bornCount = female.ProgressGestationOneDay();
             if (bornCount <= 0) continue;
 
-            newborns.AddRange(CreateOffspringBatch(female.Species, bornCount, female.Profile.InfantMortalityRate));
+            newborns.AddRange(CreateOffspringBatch(female.Species, female.Name, bornCount, female.Profile.InfantMortalityRate));
         }
 
         return newborns;
@@ -40,7 +40,7 @@ public sealed class ReproductionService
             var hatchedCount = female.ProgressEggIncubationOneDay();
             if (hatchedCount <= 0) continue;
 
-            newborns.AddRange(CreateOffspringBatch(female.Species, hatchedCount, female.Profile.InfantMortalityRate));
+            newborns.AddRange(CreateOffspringBatch(female.Species, female.Name, hatchedCount, female.Profile.InfantMortalityRate));
         }
 
         return newborns;
@@ -82,7 +82,7 @@ public sealed class ReproductionService
         }
     }
 
-    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, int count, decimal? infantMortalityRate)
+    private static IEnumerable<ZooAnimal> CreateOffspringBatch(SpeciesType species, string parentName, int count, decimal? infantMortalityRate)
     {
         var survivorCount = ComputeSurvivorsAfterInfantMortality(count, infantMortalityRate);
 
@@ -91,7 +91,7 @@ public sealed class ReproductionService
         for (var i = 0; i < survivorCount; i++)
         {
             var sex = Random.Shared.Next(0, 2) == 0 ? SexType.Male : SexType.Female;
-            var name = $"{species}_{Guid.NewGuid():N}";
+            var name = BuildTemporaryNewbornName(species, parentName, i + 1);
             newborns.Add(new ZooAnimal(name, sex, species, ageDays: 0, isHungry: false, isSick: false));
         }
 
@@ -142,5 +142,18 @@ public sealed class ReproductionService
         }
 
         return 0;
+    }
+
+    private static string BuildTemporaryNewbornName(SpeciesType species, string parentName, int order)
+    {
+        var label = species switch
+        {
+            SpeciesType.Tiger => "Cub",
+            SpeciesType.Eagle => "Eaglet",
+            SpeciesType.Rooster => "Chick",
+            _ => "Child"
+        };
+
+        return $"{label} of {parentName} {order}";
     }
 }

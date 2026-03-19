@@ -8,6 +8,7 @@ public enum ZooEventType
     Birth,
     InfantDeath,
     Disease,
+    DiseaseRecovered,
     DiseaseDeath,
     HungerDeath,
     EndOfLife,
