@@ -9,5 +9,6 @@ public enum MenuOption
     BuyHabitat = 4,
     SellAnimal = 5,
     SellHabitat = 6,
-    ShowStatus = 7
+    ShowStatus = 7,
+    Fight = 8
 }

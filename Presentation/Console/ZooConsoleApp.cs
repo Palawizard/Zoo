@@ -1,5 +1,6 @@
 using Zoo.Application.Simulation;
 using Zoo.Domain.Animals;
+using Zoo.Domain.Combat;
 using Zoo.Domain.Feeding;
 using Zoo.Domain.Habitats;
 
@@ -27,7 +28,7 @@ public sealed class ZooConsoleApp
         while (running)
         {
             _printer.PrintMenu();
-            var choice = (MenuOption)_input.ReadInt("Your choice:", 0, 7);
+            var choice = (MenuOption)_input.ReadInt("Your choice:", 0, 8);
 
             switch (choice)
             {
@@ -51,6 +52,9 @@ public sealed class ZooConsoleApp
                     break;
                 case MenuOption.ShowStatus:
                     _printer.PrintStatus(_simulation);
+                    break;
+                case MenuOption.Fight:
+                    HandleFight();
                     break;
                 case MenuOption.Quit:
                     running = false;
@@ -229,6 +233,42 @@ public sealed class ZooConsoleApp
             Console.WriteLine("Habitat sold.");
         else
             Console.WriteLine("Sale failed.");
+    }
+
+    private void HandleFight()
+    {
+        var animals = _simulation.Animals.Where(a => a.IsAlive).ToList();
+
+        if (animals.Count < 2)
+        {
+            Console.WriteLine("At least 2 alive animals are required to fight.");
+            return;
+        }
+
+        PrintFighterList(animals);
+
+        var firstIndex  = _input.ReadInt("Fighter 1:", 1, animals.Count) - 1;
+        var secondIndex = _input.ReadInt("Fighter 2:", 1, animals.Count) - 1;
+
+        if (firstIndex == secondIndex)
+        {
+            Console.WriteLine("An animal cannot fight itself.");
+            return;
+        }
+
+        var result = CombatService.Fight(animals[firstIndex], animals[secondIndex]);
+        _printer.PrintCombatResult(result);
+    }
+
+    private void PrintFighterList(List<ZooAnimal> animals)
+    {
+        Console.WriteLine("Available fighters:");
+        for (var i = 0; i < animals.Count; i++)
+        {
+            var a     = animals[i];
+            var stats = CombatStatsCatalog.GetStats(a);
+            Console.WriteLine($"{i + 1}. {a.Name} | {a.Species} | Force: {stats.Force} | Vitesse: {stats.Vitesse} | Défense: {stats.Defense}");
+        }
     }
 
     private void OfferAnimalsForHabitat(SpeciesType species)

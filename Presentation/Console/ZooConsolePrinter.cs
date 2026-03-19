@@ -1,5 +1,6 @@
 using Zoo.Application.Simulation;
 using Zoo.Domain.Animals;
+using Zoo.Domain.Combat;
 using Zoo.Domain.Events;
 using Zoo.Domain.Habitats;
 
@@ -25,6 +26,7 @@ public sealed class ZooConsolePrinter
         Console.WriteLine("5. Sell an animal");
         Console.WriteLine("6. Sell a habitat");
         Console.WriteLine("7. Show status");
+        Console.WriteLine("8. Fight");
         Console.WriteLine("0. Quit");
     }
 
@@ -102,6 +104,28 @@ public sealed class ZooConsolePrinter
 
             Console.WriteLine($"{i + 1}. {animal.Name} | {animal.Species} | {animal.Sex} | Age: {animal.AgeDays}d | {status} | Hungry: {hungry} | Habitat: {habitatLabel}");
         }
+    }
+
+    public void PrintCombatResult(CombatResult result)
+    {
+        Console.WriteLine();
+        Console.WriteLine("=== Combat ===");
+        Console.WriteLine($"Rounds: {result.Rounds.Count}");
+        Console.WriteLine();
+
+        foreach (var round in result.Rounds)
+        {
+            Console.WriteLine($"  {round.AttackerName} frappe {round.DefenderName} pour {round.Damage} dmg  |  HP {round.DefenderName}: {round.DefenderHpAfter}");
+        }
+
+        Console.WriteLine();
+
+        if (result.IsDraw)
+            Console.WriteLine("Résultat : ÉGALITÉ !");
+        else
+            Console.WriteLine($"Vainqueur : {result.Winner.Name} ({result.Winner.Species}) !");
+
+        Console.WriteLine("==============");
     }
 
     private static string FindHabitatLabel(ZooAnimal animal, IReadOnlyList<Habitat> habitats)
