@@ -8,7 +8,9 @@ public enum ZooEventType
     Birth,
     InfantDeath,
     Disease,
+    DiseaseRecovered,
     DiseaseDeath,
+    HungerDeath,
     EndOfLife,
     HabitatMonthlyLoss,
     OverpopulationDeath,
@@ -23,5 +25,7 @@ public enum ZooEventType
     FoodPurchased,
     VisitorIncome,
     AnnualSubsidy,
+    HabitatAnimalsRehoused,
+    HabitatAnimalsEuthanized,
     TurnAdvanced
 }

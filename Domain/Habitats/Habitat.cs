@@ -114,7 +114,6 @@ public class Habitat
 
             var victim = candidates[random.Next(candidates.Count)];
             victim.Kill();
-            Animals.Remove(victim);
             lost.Add(victim);
         }
 

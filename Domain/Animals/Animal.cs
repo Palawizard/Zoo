@@ -23,13 +23,32 @@ public abstract class Animal
 
     private const int AdultArrivalReproductionBlockDays = 30;
     private const decimal GestatingFemaleFoodMultiplier = 2m;
+    private const int StarvationDeathMultiplier = 2;
 
     public HealthStatus Health { get; private set; } = HealthStatus.Healthy;
     public bool IsAlive => Health != HealthStatus.Dead;
     public bool IsSick => Health == HealthStatus.Sick;
 
     public void MakeSick() => Health = HealthStatus.Sick;
-    public void Kill() => Health = HealthStatus.Dead;
+    public void Kill()
+    {
+        Health = HealthStatus.Dead;
+        IsHungry = false;
+        HungerDebtDays = 0;
+        IsGestating = false;
+        GestationRemainingDays = 0;
+        PendingEggs = 0;
+        EggIncubationRemainingDays = 0;
+        DiseaseRemainingDays = 0;
+    }
+    public void Rename(string name)
+    {
+        var trimmedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+            throw new ArgumentException("Animal name cannot be empty.", nameof(name));
+
+        Name = trimmedName;
+    }
     public void Heal() => Health = HealthStatus.Healthy;
     
     private const decimal DiseaseDeathProbability = 0.10m;
@@ -90,11 +109,21 @@ public abstract class Animal
 
         AgeDays++;
         ProgressArrivalReproductionBlockOneDay();
+        var wasSick = IsSick;
         if (ProgressDiseaseOneDay())
             return new AnimalDailyOutcome(DiedOfDisease: true);
 
         if (!IsAlive)
             return new AnimalDailyOutcome();
+
+        if (wasSick && !IsSick)
+            return new AnimalDailyOutcome(RecoveredFromDisease: true);
+
+        if (HasReachedStarvationDeathThreshold())
+        {
+            Kill();
+            return new AnimalDailyOutcome(DiedOfHunger: true);
+        }
 
         if (AgeDays < Profile.LifeExpectancyDays)
             return new AnimalDailyOutcome();
@@ -347,5 +376,11 @@ public abstract class Animal
         var dailyProbability = 1d - Math.Pow(1d - (double)annualProbability, 1d / 365d);
 
         return (decimal)dailyProbability;
+    }
+
+    private bool HasReachedStarvationDeathThreshold()
+    {
+        var threshold = Math.Max(1, Profile.DaysBeforeHungry * StarvationDeathMultiplier);
+        return HungerDebtDays >= threshold;
     }
 }

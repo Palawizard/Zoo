@@ -3,19 +3,25 @@ using System.Linq;
 using Avalonia.Media;
 using Zoo.Application.Simulation;
 using Zoo.Domain.Animals;
+using Zoo.Domain.Events;
 using Zoo.Domain.Feeding;
+using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
 
 namespace Zoo.Desktop;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
-    private readonly ZooSimulationService _simulation = new(cash: 80000m);
+    private readonly ZooSimulationService _simulation = new(cash: 80000m, interactiveHabitatEmergencies: true);
+    private readonly AnimalMarket _animalMarket = new();
+    private readonly FoodMarket _foodMarket = new();
 
     private string _advanceDaysInput = "7";
-    private string _foodKgInput = "50";
-    private string _animalNameInput = "Nova";
-    private string _animalAgeInput = "365";
+    private string _foodKgInput = string.Empty;
+    private string _animalNameInput = string.Empty;
+    private string _animalAgeYearsInput = string.Empty;
+    private string _animalAgeMonthsInput = string.Empty;
+    private string _animalAgeDaysInput = string.Empty;
     private bool _autoBuyHabitatForAnimal = true;
     private SpeciesType _selectedHabitatSpecies = SpeciesType.Tiger;
     private FoodType _selectedFoodType = FoodType.Meat;
@@ -51,7 +57,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public MainWindowViewModel()
     {
         RefreshSnapshot();
-        SetMessage("Desktop dashboard ready. The zoo starts with 80 000 EUR in cash.", isError: false);
+        SetMessage("Zoo ready. Initial budget: 80 000 EUR.", isError: false);
     }
 
     public IReadOnlyList<SpeciesType> SpeciesOptions { get; } = Enum.GetValues<SpeciesType>();
@@ -83,10 +89,22 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _animalNameInput, value);
     }
 
-    public string AnimalAgeInput
+    public string AnimalAgeYearsInput
     {
-        get => _animalAgeInput;
-        set => SetProperty(ref _animalAgeInput, value);
+        get => _animalAgeYearsInput;
+        set => SetProperty(ref _animalAgeYearsInput, value);
+    }
+
+    public string AnimalAgeMonthsInput
+    {
+        get => _animalAgeMonthsInput;
+        set => SetProperty(ref _animalAgeMonthsInput, value);
+    }
+
+    public string AnimalAgeDaysInput
+    {
+        get => _animalAgeDaysInput;
+        set => SetProperty(ref _animalAgeDaysInput, value);
     }
 
     public bool AutoBuyHabitatForAnimal
@@ -288,6 +306,20 @@ public sealed class MainWindowViewModel : ObservableObject
     public string EventHeader => $"Recent events ({EventRows.Count})";
     public string ImportantEventHeader => $"Important events ({ImportantEventRows.Count})";
     public string LedgerHeader => $"Ledger ({LedgerRows.Count})";
+    public int EventCount => _simulation.Events.Count;
+    public PendingHabitatEmergency? PendingHabitatEmergency => _simulation.PendingHabitatEmergency;
+    public ZooAnimal? PendingNewbornAwaitingName => _simulation.PeekNewbornAwaitingName();
+    public IReadOnlyList<EventRow> GetNewEventRows(int previousEventCount)
+    {
+        if (previousEventCount < 0)
+            previousEventCount = 0;
+
+        return _simulation.Events
+            .Skip(previousEventCount)
+            .Where(ShouldShowPopupForEvent)
+            .Select(zooEvent => new EventRow(zooEvent))
+            .ToList();
+    }
 
     public void AdvanceTurns(int? overrideDays = null)
     {
@@ -295,21 +327,177 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
 
         var previousEventCount = _simulation.Events.Count;
+        var completedDays = 0;
 
-        for (var day = 0; day < days; day++)
-            _simulation.NextTurn();
+        for (; completedDays < days; completedDays++)
+        {
+            var state = _simulation.AdvanceTurnWithInterruptions();
+            if (state == TurnAdvanceState.AwaitingHabitatEmergencyDecision)
+            {
+                RefreshSnapshot();
+                SetMessage($"Simulation paused after {completedDays + 1} day(s). Resolve the habitat emergency to continue.", isError: true);
+                return;
+            }
+        }
 
         RefreshSnapshot();
 
         var newEvents = _simulation.Events.Count - previousEventCount;
-        SetMessage($"{days} day(s) simulated. {newEvents} new event(s) logged.", isError: false);
+        SetMessage($"{completedDays} day(s) simulated. {newEvents} new event(s) logged.", isError: false);
+    }
+
+    public bool TryGetAdvanceDays(int? overrideDays, out int days)
+    {
+        return TryReadPositiveInt(overrideDays?.ToString() ?? AdvanceDaysInput, "Advance days", out days);
+    }
+
+    public TurnAdvanceState AdvanceSingleTurn()
+    {
+        var state = _simulation.AdvanceTurnWithInterruptions();
+        RefreshSnapshot();
+
+        if (state == TurnAdvanceState.AwaitingHabitatEmergencyDecision)
+        {
+            SetMessage("Habitat emergency pending. Choose whether to rehouse or euthanize the animals.", isError: true);
+            return state;
+        }
+
+        return TurnAdvanceState.Completed;
+    }
+
+    public bool TryResolvePendingHabitatEmergency(HabitatEmergencyResolution resolution, out string failureReason)
+    {
+        var success = _simulation.TryResolvePendingHabitatEmergency(resolution, out failureReason);
+        RefreshSnapshot();
+
+        if (success)
+        {
+            var verb = resolution == HabitatEmergencyResolution.RehouseAnimals ? "rehoused" : "euthanized";
+            SetMessage($"Habitat emergency resolved. Animals were {verb}.", isError: false);
+            return true;
+        }
+
+        SetMessage(failureReason, isError: true);
+        return false;
+    }
+
+    public bool TryFinalizePendingNewbornNaming(string? chosenName, out string failureReason)
+    {
+        var success = _simulation.TryFinalizeNextNewbornNaming(chosenName, out var newborn, out failureReason);
+        RefreshSnapshot(selectedAnimalId: newborn?.Id);
+
+        if (success && newborn is not null)
+        {
+            SetMessage($"{newborn.Name} is ready in the zoo.", isError: false);
+            return true;
+        }
+
+        SetMessage(failureReason, isError: true);
+        return false;
+    }
+
+    public void ShowAdvanceSummary(int completedDays, int previousEventCount, bool paused)
+    {
+        var newEvents = _simulation.Events.Count - previousEventCount;
+        var message = paused
+            ? $"Simulation paused after {completedDays} day(s). {newEvents} new event(s) logged."
+            : $"{completedDays} day(s) simulated. {newEvents} new event(s) logged.";
+        SetMessage(message, isError: paused);
+    }
+
+    public void ShowStatus(string message, bool isError = false)
+    {
+        SetMessage(message, isError);
+    }
+
+    public string? GetBuyHabitatConfirmationMessage()
+    {
+        var habitat = HabitatFactory.Create(SelectedHabitatSpecies);
+        return $"Buy a {SelectedHabitatSpecies} habitat for {habitat.BuyPrice:0.##} EUR?";
+    }
+
+    public string? GetBuyFoodConfirmationMessage()
+    {
+        if (!TryReadPositiveDecimal(FoodKgInput, "Food quantity", out var kilograms))
+            return null;
+
+        var cost = _foodMarket.Buy(SelectedFoodType, kilograms);
+        var label = SelectedFoodType == FoodType.Meat ? "meat" : "seeds";
+        return $"Buy {kilograms:0.##} kg of {label} for {cost:0.##} EUR?";
+    }
+
+    public string? GetBuyAnimalConfirmationMessage()
+    {
+        var name = AnimalNameInput.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            SetMessage("Animal name is required.", isError: true);
+            return null;
+        }
+
+        if (!TryReadAnimalAge(out var ageDays))
+            return null;
+
+        var cost = _animalMarket.BuyAnimalPrice(SelectedAnimalSpecies, SelectedAnimalSex, ageDays);
+        var hasHabitat = SelectHabitatForSpecies(SelectedAnimalSpecies) is not null;
+        var ageLabel = UiTextFormatter.FormatAge(ageDays);
+
+        if (hasHabitat)
+            return $"Buy {name} ({SelectedAnimalSpecies}, {SelectedAnimalSex}, {ageLabel}) for {cost:0.##} EUR?";
+
+        if (!AutoBuyHabitatForAnimal)
+        {
+            SetMessage($"No free {SelectedAnimalSpecies} habitat. Enable auto-buy or purchase one first.", isError: true);
+            return null;
+        }
+
+        var habitatCost = HabitatFactory.Create(SelectedAnimalSpecies).BuyPrice;
+        return
+            $"Buy {name} ({SelectedAnimalSpecies}, {SelectedAnimalSex}, {ageLabel}) for {cost:0.##} EUR and auto-buy one habitat for {habitatCost:0.##} EUR?";
+    }
+
+    public string? GetSellAnimalConfirmationMessage()
+    {
+        if (SelectedAnimalRow is null)
+        {
+            SetMessage("Select an animal to sell.", isError: true);
+            return null;
+        }
+
+        var animal = SelectedAnimalRow.Animal;
+        var revenue = _simulation.EstimateAnimalSalePrice(animal);
+        return animal.IsAlive
+            ? $"Sell {animal.Name} for {revenue:0.##} EUR?"
+            : $"Sell {animal.Name}'s remains for {revenue:0.##} EUR?";
+    }
+
+    public string? GetSellHabitatConfirmationMessage()
+    {
+        if (SelectedHabitatRow is null)
+        {
+            SetMessage("Select a habitat to sell.", isError: true);
+            return null;
+        }
+
+        var habitat = SelectedHabitatRow.Habitat;
+        if (habitat.Animals.Count > 0)
+        {
+            SetMessage("Only empty habitats can be sold.", isError: true);
+            return null;
+        }
+
+        return $"Sell the {habitat.Species} habitat for {habitat.SellPrice:0.##} EUR?";
     }
 
     public void BuyHabitat()
     {
+        var selectedAnimalId = SelectedAnimalRow?.Animal.Id;
+
         if (_simulation.BuyHabitat(SelectedHabitatSpecies))
         {
-            RefreshSnapshot(selectedHabitatId: _simulation.Habitats.Last().Id);
+            RefreshSnapshot(
+                selectedAnimalId: selectedAnimalId,
+                selectedHabitatId: _simulation.Habitats.Last().Id);
             SetMessage($"{SelectedHabitatSpecies} habitat purchased.", isError: false);
             return;
         }
@@ -341,7 +529,7 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
-        if (!TryReadPositiveInt(AnimalAgeInput, "Animal age", out var ageDays, allowZero: true))
+        if (!TryReadAnimalAge(out var ageDays))
             return;
 
         var habitat = SelectHabitatForSpecies(SelectedAnimalSpecies);
@@ -378,6 +566,9 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             habitat.AddAnimal(animal);
             AnimalNameInput = string.Empty;
+            AnimalAgeYearsInput = string.Empty;
+            AnimalAgeMonthsInput = string.Empty;
+            AnimalAgeDaysInput = string.Empty;
             RefreshSnapshot(selectedAnimalId: animal.Id, selectedHabitatId: habitat.Id);
             SetMessage($"{animal.Name} the {animal.Species} has been added to the zoo.", isError: false);
         }
@@ -397,8 +588,9 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var animalName = SelectedAnimalRow.Animal.Name;
-        if (_simulation.SellAnimal(SelectedAnimalRow.Animal))
+        var animal = SelectedAnimalRow.Animal;
+        var animalName = animal.Name;
+        if (_simulation.SellAnimal(animal))
         {
             RefreshSnapshot();
             SetMessage($"{animalName} was sold.", isError: false);
@@ -441,6 +633,7 @@ public sealed class MainWindowViewModel : ObservableObject
         var visibleCount = visibleAnimals.Count;
         var projectedRevenueBySpecies = _simulation.CalculateVisitorRevenueBySpecies(_simulation.IsHighSeason);
         var totalProjectedRevenue = projectedRevenueBySpecies.Values.Sum();
+        var aliveAnimals = animals.Where(a => a.IsAlive).ToList();
 
         HeaderDate = $"Day {_simulation.CurrentDayOfMonth:00}/{_simulation.CurrentMonth:00}/Year {_simulation.CurrentYear} | Turn {_simulation.TurnNumber}";
         SeasonLabel = _simulation.IsHighSeason ? "High season" : "Low season";
@@ -450,8 +643,8 @@ public sealed class MainWindowViewModel : ObservableObject
         CashCaption = $"Last balance recorded in {_simulation.Ledger.Transactions.Count} ledger entries.";
         FoodMetric = $"{_simulation.MeatStockKg:0.##} kg meat | {_simulation.SeedsStockKg:0.##} kg seeds";
         FoodCaption = "Food inventory available for the next feeding cycles.";
-        PopulationMetric = $"{animals.Count(a => a.IsAlive)} alive / {animals.Count} total";
-        PopulationCaption = $"{animals.Count(a => a.IsSick)} sick | {animals.Count(a => a.IsHungry)} hungry";
+        PopulationMetric = $"{aliveAnimals.Count} alive / {animals.Count} total";
+        PopulationCaption = $"{aliveAnimals.Count(a => a.IsSick)} sick | {aliveAnimals.Count(a => a.IsHungry)} hungry";
         ExposureMetric = $"{visibleCount} on show";
         ExposureCaption = $"{habitats.Sum(h => h.Animals.Count)}/{Math.Max(1, habitats.Sum(h => h.Capacity))} occupied slots across habitats";
         RevenueMetric = $"{totalProjectedRevenue:0.##} EUR";
@@ -460,7 +653,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
         SyncCollection(
             AnimalRows,
-            animals.Select(animal => new AnimalRow(animal, FindHabitatLabel(animal, habitats))));
+            animals.Select(animal =>
+                new AnimalRow(
+                    animal,
+                    FindHabitatLabel(animal, habitats),
+                    DescribeReproductionStatus(animal, habitats))));
 
         SyncCollection(
             HabitatRows,
@@ -478,7 +675,6 @@ public sealed class MainWindowViewModel : ObservableObject
             _simulation.Events
                 .Where(IsImportantEvent)
                 .Reverse()
-                .Take(20)
                 .Select(zooEvent => new EventRow(zooEvent)));
 
         SyncCollection(
@@ -539,17 +735,20 @@ public sealed class MainWindowViewModel : ObservableObject
         var animal = SelectedAnimalRow.Animal;
         SelectedAnimalTitle = SelectedAnimalRow.Name;
         SelectedAnimalSummary = $"{animal.Species} | {animal.Sex} | {SelectedAnimalRow.Status}";
+        var ageLabel = UiTextFormatter.FormatAge(animal.AgeDays);
+        var habitats = _simulation.Habitats.ToList();
+        var reproductionLabel = DescribeReproductionStatus(animal, habitats);
         SelectedAnimalDetail =
             animal switch
             {
                 _ when !animal.IsAlive =>
-                    $"Age {animal.AgeDays} days | {SelectedAnimalRow.HabitatLabel} | Dead",
+                    $"Age {ageLabel} | {SelectedAnimalRow.HabitatLabel} | Dead | {reproductionLabel}",
                 _ when animal.IsGestating =>
-                    $"Age {animal.AgeDays} days | {SelectedAnimalRow.HabitatLabel} | Gestation {animal.GestationRemainingDays} day(s)",
+                    $"Age {ageLabel} | {SelectedAnimalRow.HabitatLabel} | Gestation {animal.GestationRemainingDays} day(s) | {reproductionLabel}",
                 _ when animal.EggIncubationRemainingDays > 0 =>
-                    $"Age {animal.AgeDays} days | {SelectedAnimalRow.HabitatLabel} | {animal.PendingEggs} egg(s), {animal.EggIncubationRemainingDays} day(s)",
+                    $"Age {ageLabel} | {SelectedAnimalRow.HabitatLabel} | {animal.PendingEggs} egg(s), {animal.EggIncubationRemainingDays} day(s) | {reproductionLabel}",
                 _ =>
-                    $"Age {animal.AgeDays} days | {SelectedAnimalRow.HabitatLabel} | Hunger {animal.HungerDebtDays} day(s) | Disease {animal.DiseaseRemainingDays} day(s)"
+                    $"Age {ageLabel} | {SelectedAnimalRow.HabitatLabel} | Hunger {animal.HungerDebtDays} day(s) | Disease {animal.DiseaseRemainingDays} day(s) | {reproductionLabel}"
             };
     }
 
@@ -572,14 +771,18 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void UpdateWatchlist(IReadOnlyList<ZooAnimal> animals, IReadOnlyList<Habitat> habitats, int visibleCount)
     {
-        var sickCount = animals.Count(animal => animal.IsSick);
-        var hungryCount = animals.Count(animal => animal.IsHungry);
-        var gestatingCount = animals.Count(animal => animal.IsGestating || animal.EggIncubationRemainingDays > 0);
+        var aliveAnimals = animals.Where(animal => animal.IsAlive).ToList();
+        var sickCount = aliveAnimals.Count(animal => animal.IsSick);
+        var hungryCount = aliveAnimals.Count(animal => animal.IsHungry);
+        var gestatingCount = aliveAnimals.Count(animal => animal.IsGestating || animal.EggIncubationRemainingDays > 0);
         var emptyHabitatCount = habitats.Count(habitat => habitat.Animals.Count == 0);
+        var watchCount = sickCount + hungryCount + gestatingCount;
 
-        WatchlistTitle = sickCount + hungryCount + gestatingCount == 0
+        WatchlistTitle = watchCount == 0
             ? "No immediate operational alerts"
-            : $"{sickCount + hungryCount + gestatingCount} watch item(s) need attention";
+            : watchCount == 1
+                ? "1 issue needs attention"
+                : $"{watchCount} issues need attention";
         WatchlistSummary =
             $"{sickCount} sick | {hungryCount} hungry | {gestatingCount} hidden from visitors | {emptyHabitatCount} empty habitat(s)";
     }
@@ -590,16 +793,150 @@ public sealed class MainWindowViewModel : ObservableObject
         return habitat is null ? "No habitat" : $"{habitat.Species} habitat";
     }
 
+    private string DescribeReproductionStatus(ZooAnimal animal, IReadOnlyList<Habitat> habitats)
+    {
+        var reasons = new List<string>();
+        var habitat = habitats.FirstOrDefault(candidate => candidate.Animals.Contains(animal));
+        var compatibleMate = habitat is null ? null : GetCompatibleMate(animal, habitat);
+
+        if (!animal.IsAlive)
+            return "Reproduction unavailable";
+
+        if (!animal.HasReachedSexualMaturity())
+            reasons.Add("too young");
+        if (animal.HasReachedReproductionEnd())
+            reasons.Add("past reproduction age");
+        if (animal.IsHungry)
+            reasons.Add("hungry");
+        if (animal.IsSick)
+            reasons.Add("sick");
+        if (animal.IsBlockedFromReproductionByArrival())
+            reasons.Add("arrival cooldown");
+        if (animal.MonthsUntilNextLitter > 0)
+            reasons.Add($"{animal.MonthsUntilNextLitter} month cooldown");
+        if (animal.IsGestating)
+            reasons.Add("already gestating");
+        if (animal.EggIncubationRemainingDays > 0)
+            reasons.Add("incubating eggs");
+        if (habitat is null)
+            reasons.Add("no habitat");
+
+        if (habitat is not null && compatibleMate is null)
+            reasons.Add("no compatible mate");
+
+        if (NeedsFreeSpaceForReproduction(animal) &&
+            compatibleMate is not null &&
+            !HasSpaceForFutureOffspring(animal, compatibleMate, habitats))
+            reasons.Add("not enough free space");
+
+        if (animal.Sex == SexType.Female &&
+            animal.Profile.EggLayingMonth is int layingMonth &&
+            layingMonth != _simulation.CurrentMonth)
+        {
+            reasons.Add($"lays eggs in month {layingMonth}");
+        }
+
+        return reasons.Count == 0
+            ? "Reproduction ready"
+            : $"Reproduction blocked: {string.Join(", ", reasons.Distinct())}";
+    }
+
+    private bool HasCompatibleMate(ZooAnimal animal, Habitat habitat)
+    {
+        return GetCompatibleMate(animal, habitat) is not null;
+    }
+
+    private ZooAnimal? GetCompatibleMate(ZooAnimal animal, Habitat habitat)
+    {
+        return habitat.Animals
+            .OfType<ZooAnimal>()
+            .Where(candidate => candidate.Id != animal.Id)
+            .FirstOrDefault(candidate =>
+                candidate.Sex != animal.Sex &&
+                candidate.Species == animal.Species &&
+                candidate.IsAlive &&
+                (candidate.Sex == SexType.Male
+                    ? candidate.CanReproduceToday() && candidate.CanReproduceByAge()
+                    : candidate.CanStartGestationToday() || candidate.CanLayEggThisMonth(_simulation.CurrentMonth)));
+    }
+
+    private bool NeedsFreeSpaceForReproduction(ZooAnimal animal)
+    {
+        return animal.IsAlive &&
+               animal.CanReproduceByAge() &&
+               !animal.IsHungry &&
+               !animal.IsSick &&
+               !animal.IsBlockedFromReproductionByArrival() &&
+               animal.MonthsUntilNextLitter == 0 &&
+               !animal.IsGestating &&
+               animal.EggIncubationRemainingDays == 0;
+    }
+
+    private bool HasSpaceForFutureOffspring(ZooAnimal animal, ZooAnimal compatibleMate, IReadOnlyList<Habitat> habitats)
+    {
+        var availableSlots = habitats
+            .Where(habitat => habitat.Species == animal.Species)
+            .Sum(habitat => habitat.AvailableSlots);
+
+        var reservedSlots = _simulation.Animals
+            .Where(existingAnimal => existingAnimal.IsAlive && existingAnimal.Species == animal.Species)
+            .Sum(GetReservedOffspringCount);
+
+        var requiredSlots = GetExpectedOffspringSlots(animal, compatibleMate);
+        return availableSlots - reservedSlots >= requiredSlots;
+    }
+
+    private int GetExpectedOffspringSlots(ZooAnimal animal, ZooAnimal? compatibleMate)
+    {
+        var female = animal.Sex == SexType.Female ? animal : compatibleMate;
+        if (female is null)
+            return Math.Max(1, animal.Profile.LitterSize ?? 1);
+
+        if (female.Profile.EggLayingMonth is int layingMonth)
+        {
+            if (female.Profile.LitterSize is int litterSize && litterSize > 0 && layingMonth == _simulation.CurrentMonth)
+                return litterSize;
+
+            return 0;
+        }
+
+        if (female.Profile.EggsPerYear is int eggsPerYear && eggsPerYear > 0)
+            return GetEggCountForMonth(eggsPerYear, _simulation.CurrentMonth);
+
+        if (female.Profile.LitterSize is int femaleLitterSize && femaleLitterSize > 0)
+            return femaleLitterSize;
+
+        return Math.Max(1, animal.Profile.LitterSize ?? compatibleMate?.Profile.LitterSize ?? 1);
+    }
+
+    private static int GetEggCountForMonth(int eggsPerYear, int month)
+    {
+        var baseEggs = eggsPerYear / 12;
+        var remainder = eggsPerYear % 12;
+        return baseEggs + (month <= remainder ? 1 : 0);
+    }
+
+    private static int GetReservedOffspringCount(ZooAnimal animal)
+    {
+        if (animal.IsGestating)
+            return animal.Profile.LitterSize ?? 0;
+
+        if (animal.EggIncubationRemainingDays > 0)
+            return animal.PendingEggs;
+
+        return 0;
+    }
+
     private static bool IsImportantEvent(Domain.Events.ZooEvent zooEvent)
     {
-        return zooEvent.Type is
-            Domain.Events.ZooEventType.DiseaseDeath or
-            Domain.Events.ZooEventType.EndOfLife or
-            Domain.Events.ZooEventType.HabitatMonthlyLoss or
-            Domain.Events.ZooEventType.OverpopulationDeath or
-            Domain.Events.ZooEventType.Fire or
-            Domain.Events.ZooEventType.Theft or
-            Domain.Events.ZooEventType.InfantDeath;
+        return zooEvent.Type is not Domain.Events.ZooEventType.TurnAdvanced
+            and not Domain.Events.ZooEventType.VisitorIncome
+            and not Domain.Events.ZooEventType.SpoiledMeat;
+    }
+
+    private static bool ShouldShowPopupForEvent(ZooEvent zooEvent)
+    {
+        return zooEvent.Type is not ZooEventType.TurnAdvanced;
     }
 
     private void SyncCollection<T>(ObservableCollection<T> target, IEnumerable<T> items)
@@ -619,6 +956,46 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         return true;
+    }
+
+    private bool TryReadOptionalNonNegativeInt(string rawValue, string label, out int value)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            value = 0;
+            return true;
+        }
+
+        if (!int.TryParse(rawValue, out value) || value < 0)
+        {
+            SetMessage($"{label} must be a whole number greater than or equal to 0.", isError: true);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryReadAnimalAge(out int ageDays)
+    {
+        ageDays = 0;
+
+        if (!TryReadOptionalNonNegativeInt(AnimalAgeYearsInput, "Animal age years", out var years) ||
+            !TryReadOptionalNonNegativeInt(AnimalAgeMonthsInput, "Animal age months", out var months) ||
+            !TryReadOptionalNonNegativeInt(AnimalAgeDaysInput, "Animal age days", out var days))
+        {
+            return false;
+        }
+
+        try
+        {
+            ageDays = checked((years * 365) + (months * 30) + days);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            SetMessage("Animal age is too large.", isError: true);
+            return false;
+        }
     }
 
     private bool TryReadPositiveDecimal(string rawValue, string label, out decimal value)

@@ -103,6 +103,33 @@ public sealed class ReproductionRulesTests
     }
 
     [Fact]
+    public void HensNeedEnoughHabitatSpaceForTheirMonthlyEggBatch()
+    {
+        var simulation = new ZooSimulationService(cash: 20000m);
+        simulation.BuyHabitat(SpeciesType.Rooster);
+
+        var habitat = Assert.Single(simulation.Habitats);
+        var rooster = new ZooAnimal("Rocky", SexType.Male, SpeciesType.Rooster, ageDays: 6 * 30);
+        var hen = new ZooAnimal("Ruby", SexType.Female, SpeciesType.Rooster, ageDays: 6 * 30);
+
+        simulation.AddAnimal(rooster);
+        simulation.AddAnimal(hen);
+        habitat.AddAnimal(rooster);
+        habitat.AddAnimal(hen);
+        UnlockArrivalBlock(rooster, hen);
+        simulation.SetCurrentMonth(1);
+
+        simulation.TryEggLayingForCurrentMonth();
+        Assert.Equal(0, hen.PendingEggs);
+
+        simulation.BuyHabitat(SpeciesType.Rooster);
+        simulation.BuyHabitat(SpeciesType.Rooster);
+
+        simulation.TryEggLayingForCurrentMonth();
+        Assert.True(hen.PendingEggs >= 16);
+    }
+
+    [Fact]
     public void TigressMustWaitTwentyMonthsBetweenLitters()
     {
         var tigress = new ZooAnimal("Sura", SexType.Female, SpeciesType.Tiger, ageDays: 4 * 365);
@@ -130,6 +157,49 @@ public sealed class ReproductionRulesTests
         tigress.ProgressReproductionOneMonth();
 
         Assert.True(tigress.CanStartGestationToday());
+    }
+
+    [Fact]
+    public void NewbornsCanBeNamedOneByOneAfterBirth()
+    {
+        var simulation = new ZooSimulationService(cash: 50000m);
+        simulation.BuyHabitat(SpeciesType.Tiger);
+        simulation.BuyHabitat(SpeciesType.Tiger);
+        simulation.BuyHabitat(SpeciesType.Tiger);
+
+        var tigress = new ZooAnimal("Nala", SexType.Female, SpeciesType.Tiger, ageDays: 4 * 365);
+        UnlockArrivalBlock(tigress);
+        tigress.StartGestation();
+        simulation.AddAnimal(tigress);
+        simulation.Habitats[0].AddAnimal(tigress);
+
+        var gestationDays = tigress.Profile.GestationDays!.Value;
+        for (var day = 0; day < gestationDays; day++)
+        {
+            tigress.ApplyDailyFeeding(tigress.GetDailyFoodNeedKg());
+            simulation.ProcessGestations();
+        }
+
+        var firstNewborn = simulation.PeekNewbornAwaitingName();
+        Assert.NotNull(firstNewborn);
+        Assert.StartsWith("Cub of Nala ", firstNewborn!.Name);
+
+        var assignedNames = new[] { "Asha", "Kito", "Zuri" };
+        var renamedCount = 0;
+
+        foreach (var assignedName in assignedNames)
+        {
+            if (simulation.PeekNewbornAwaitingName() is null)
+                break;
+
+            var renamed = simulation.TryFinalizeNextNewbornNaming(assignedName, out var namedAnimal, out var failureReason);
+            Assert.True(renamed);
+            Assert.Equal(string.Empty, failureReason);
+            Assert.Equal(assignedName, namedAnimal!.Name);
+            renamedCount++;
+        }
+
+        Assert.True(renamedCount >= 1);
     }
 
     private static void UnlockArrivalBlock(params ZooAnimal[] animals)

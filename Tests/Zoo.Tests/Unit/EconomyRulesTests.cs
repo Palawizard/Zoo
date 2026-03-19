@@ -43,4 +43,84 @@ public sealed class EconomyRulesTests
 
         Assert.Equal(500m, habitat.SellPrice);
     }
+
+    [Fact]
+    public void InteractiveHabitatDestructionCreatesPendingEmergency()
+    {
+        var simulation = new ZooSimulationService(cash: 10000m, interactiveHabitatEmergencies: true);
+        Assert.True(simulation.BuyHabitat(SpeciesType.Tiger));
+
+        var habitat = Assert.Single(simulation.Habitats);
+        var tiger = new ZooAnimal("Khan", SexType.Male, SpeciesType.Tiger, ageDays: 365);
+        simulation.AddAnimal(tiger);
+        habitat.AddAnimal(tiger);
+
+        simulation.DestroyHabitat(habitat, Domain.Events.ZooEventType.Fire, "Test fire.");
+
+        Assert.NotNull(simulation.PendingHabitatEmergency);
+        var pending = simulation.PendingHabitatEmergency!;
+        Assert.Single(pending.DisplacedAnimals);
+        Assert.Equal(SpeciesType.Tiger, pending.Species);
+        Assert.Empty(simulation.Habitats);
+    }
+
+    [Fact]
+    public void ResolvingPendingEmergencyCanRehouseAnimalsByBuyingReplacementHabitat()
+    {
+        var simulation = new ZooSimulationService(cash: 10000m, interactiveHabitatEmergencies: true);
+        Assert.True(simulation.BuyHabitat(SpeciesType.Tiger));
+
+        var habitat = Assert.Single(simulation.Habitats);
+        var tiger = new ZooAnimal("Khan", SexType.Male, SpeciesType.Tiger, ageDays: 365);
+        simulation.AddAnimal(tiger);
+        habitat.AddAnimal(tiger);
+
+        simulation.DestroyHabitat(habitat, Domain.Events.ZooEventType.Fire, "Test fire.");
+
+        var resolved = simulation.TryResolvePendingHabitatEmergency(HabitatEmergencyResolution.RehouseAnimals, out var failureReason);
+
+        Assert.True(resolved);
+        Assert.Equal(string.Empty, failureReason);
+        Assert.Null(simulation.PendingHabitatEmergency);
+        Assert.Single(simulation.Habitats);
+        Assert.Contains(tiger, simulation.Habitats[0].Animals);
+    }
+
+    [Fact]
+    public void DeadAnimalsSellForADeepDiscount()
+    {
+        var simulation = new ZooSimulationService(cash: 10000m);
+        var tiger = new ZooAnimal("Khan", SexType.Male, SpeciesType.Tiger, ageDays: 365);
+        simulation.AddAnimal(tiger);
+        tiger.Kill();
+
+        var expectedRevenue = simulation.EstimateAnimalSalePrice(tiger);
+        var sold = simulation.SellAnimal(tiger);
+
+        Assert.True(sold);
+        Assert.DoesNotContain(tiger, simulation.Animals);
+        Assert.True(expectedRevenue > 0m);
+        Assert.Equal(10000m + expectedRevenue, simulation.Cash);
+        Assert.Contains(simulation.Events, zooEvent => zooEvent.Type == Domain.Events.ZooEventType.AnimalSold);
+    }
+
+    [Fact]
+    public void DeadAnimalsKeepHabitatSlotsUntilTheyAreSold()
+    {
+        var simulation = new ZooSimulationService(cash: 10000m);
+        Assert.True(simulation.BuyHabitat(SpeciesType.Tiger));
+
+        var habitat = Assert.Single(simulation.Habitats);
+        var tiger = new ZooAnimal("Khan", SexType.Male, SpeciesType.Tiger, ageDays: 365);
+        simulation.AddAnimal(tiger);
+        habitat.AddAnimal(tiger);
+        tiger.Kill();
+
+        Assert.Contains(tiger, habitat.Animals);
+        Assert.Equal(habitat.Capacity - 1, habitat.AvailableSlots);
+
+        Assert.True(simulation.SellAnimal(tiger));
+        Assert.DoesNotContain(tiger, habitat.Animals);
+        Assert.Equal(habitat.Capacity, habitat.AvailableSlots);
+    }
 }
