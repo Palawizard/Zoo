@@ -1,0 +1,463 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="using:Zoo.Desktop"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=local:MainWindowViewModel, IsDesignTimeCreatable=True}"
+        d:DesignWidth="1400"
+        d:DesignHeight="920"
+        x:Class="Zoo.Desktop.MainWindow"
+        x:DataType="local:MainWindowViewModel"
+        Title="Zoo Manager"
+        Width="1400"
+        Height="920"
+        MinWidth="960"
+        MinHeight="720">
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#081018" Offset="0" />
+            <GradientStop Color="#0C1622" Offset="0.55" />
+            <GradientStop Color="#101B29" Offset="1" />
+        </LinearGradientBrush>
+    </Window.Background>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24" Spacing="18">
+            <WrapPanel>
+                <Border Classes="panel" Margin="0,0,18,18" Width="820">
+                    <StackPanel Spacing="12">
+                        <TextBlock Classes="eyebrow" Text="Zoo Manager" />
+                        <TextBlock FontFamily="Georgia"
+                                   FontSize="42"
+                                   FontWeight="Bold"
+                                   Text="Dashboard"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Classes="muted"
+                                   FontSize="16"
+                                   Text="Overview of the zoo."
+                                   TextWrapping="Wrap" />
+
+                        <WrapPanel>
+                            <Border Classes="listCard" Margin="0,0,10,10" Padding="12,8">
+                                <TextBlock FontWeight="SemiBold" Text="{Binding HeaderDate}" />
+                            </Border>
+                            <Border Classes="listCard" Margin="0,0,10,10" Padding="12,8">
+                                <StackPanel Spacing="2">
+                                    <TextBlock FontWeight="SemiBold" Text="{Binding SeasonLabel}" />
+                                    <TextBlock Classes="muted" Text="{Binding SeasonDetail}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+
+                        <Border Background="{Binding MessageBackground}"
+                                BorderBrush="{Binding MessageBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="18"
+                                Padding="14,12">
+                            <TextBlock FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding StatusMessage}"
+                                       TextWrapping="Wrap" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="panelAccent" Margin="0,0,0,18" Width="490">
+                    <StackPanel Spacing="14">
+                        <TextBlock Classes="eyebrow" Text="Simulation" />
+                        <TextBlock Classes="panelTitle" Text="Advance time" />
+                        <TextBlock Classes="muted"
+                                   Text="Run the simulation and refresh the state."
+                                   TextWrapping="Wrap" />
+
+                        <WrapPanel>
+                            <Button Classes="secondary compact"
+                                    Margin="0,0,8,8"
+                                    Tag="1"
+                                    Click="HandleAdvancePreset"
+                                    Content="1 day" />
+                            <Button Classes="secondary compact"
+                                    Margin="0,0,8,8"
+                                    Tag="7"
+                                    Click="HandleAdvancePreset"
+                                    Content="1 week" />
+                            <Button Classes="secondary compact"
+                                    Margin="0,0,8,8"
+                                    Tag="30"
+                                    Click="HandleAdvancePreset"
+                                    Content="1 month" />
+                        </WrapPanel>
+
+                        <WrapPanel>
+                            <TextBox Width="96"
+                                     Margin="0,0,10,10"
+                                     Watermark="Days"
+                                     Text="{Binding AdvanceDaysInput, Mode=TwoWay}" />
+                            <Button Classes="primary"
+                                    Margin="0,0,0,10"
+                                    Click="HandleAdvanceTurns"
+                                    Content="Advance simulation" />
+                        </WrapPanel>
+
+                        <Border Classes="softCard">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="eyebrow" Text="Status" />
+                                <TextBlock FontSize="22" FontWeight="SemiBold" Text="{Binding WatchlistTitle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding WatchlistSummary}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <WrapPanel>
+                <Border Classes="metricCard" Margin="0,0,14,14" Width="250">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="eyebrow" Text="Cash" />
+                        <TextBlock Classes="metricValue" Text="{Binding CashMetric}" />
+                        <TextBlock Classes="muted" Text="{Binding CashCaption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="metricCard" Margin="0,0,14,14" Width="250">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="eyebrow" Text="Food stock" />
+                        <TextBlock Classes="metricValue" Text="{Binding FoodMetric}" FontSize="24" />
+                        <TextBlock Classes="muted" Text="{Binding FoodCaption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="metricCard" Margin="0,0,14,14" Width="250">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="eyebrow" Text="Population" />
+                        <TextBlock Classes="metricValue" Text="{Binding PopulationMetric}" FontSize="24" />
+                        <TextBlock Classes="muted" Text="{Binding PopulationCaption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="metricCard" Margin="0,0,14,14" Width="250">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="eyebrow" Text="Public exposure" />
+                        <TextBlock Classes="metricValue" Text="{Binding ExposureMetric}" />
+                        <TextBlock Classes="muted" Text="{Binding ExposureCaption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="metricCard" Margin="0,0,0,14" Width="250">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="eyebrow" Text="Projected revenue" />
+                        <TextBlock Classes="metricValue" Text="{Binding RevenueMetric}" />
+                        <TextBlock Classes="muted" Text="{Binding RevenueCaption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <Border Classes="panel">
+                <TabControl>
+                    <TabItem Header="Recent">
+                        <StackPanel Margin="0,14,0,0" Spacing="12">
+                            <TextBlock Classes="panelTitle" Text="{Binding EventHeader}" />
+                            <ScrollViewer MaxHeight="340">
+                                <ItemsControl ItemsSource="{Binding EventRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:EventRow">
+                                            <Border Classes="listCard" Margin="0,0,0,10">
+                                                <StackPanel Spacing="6">
+                                                    <WrapPanel>
+                                                        <Border Background="{Binding AccentBrush}"
+                                                                Margin="0,0,8,6"
+                                                                CornerRadius="999"
+                                                                Padding="8,2">
+                                                            <TextBlock Foreground="White"
+                                                                       FontSize="12"
+                                                                       FontWeight="Bold"
+                                                                       Text="{Binding Title}"
+                                                                       TextWrapping="Wrap" />
+                                                        </Border>
+                                                        <TextBlock Classes="muted"
+                                                                   VerticalAlignment="Center"
+                                                                   Text="{Binding DateLabel}"
+                                                                   TextWrapping="Wrap" />
+                                                    </WrapPanel>
+                                                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </TabItem>
+
+                    <TabItem Header="Important">
+                        <StackPanel Margin="0,14,0,0" Spacing="12">
+                            <TextBlock Classes="panelTitle" Text="{Binding ImportantEventHeader}" />
+                            <ScrollViewer MaxHeight="340">
+                                <ItemsControl ItemsSource="{Binding ImportantEventRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:EventRow">
+                                            <Border Classes="listCard" Margin="0,0,0,10">
+                                                <StackPanel Spacing="6">
+                                                    <WrapPanel>
+                                                        <Border Background="{Binding AccentBrush}"
+                                                                Margin="0,0,8,6"
+                                                                CornerRadius="999"
+                                                                Padding="8,2">
+                                                            <TextBlock Foreground="White"
+                                                                       FontSize="12"
+                                                                       FontWeight="Bold"
+                                                                       Text="{Binding Title}"
+                                                                       TextWrapping="Wrap" />
+                                                        </Border>
+                                                        <TextBlock Classes="muted"
+                                                                   VerticalAlignment="Center"
+                                                                   Text="{Binding DateLabel}"
+                                                                   TextWrapping="Wrap" />
+                                                    </WrapPanel>
+                                                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </TabItem>
+
+                    <TabItem Header="Ledger">
+                        <StackPanel Margin="0,14,0,0" Spacing="12">
+                            <TextBlock Classes="panelTitle" Text="{Binding LedgerHeader}" />
+                            <ScrollViewer MaxHeight="340">
+                                <ItemsControl ItemsSource="{Binding LedgerRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:LedgerRow">
+                                            <Border Classes="listCard" Margin="0,0,0,10">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                    <StackPanel Spacing="4">
+                                                        <TextBlock FontWeight="SemiBold" Text="{Binding Description}" TextWrapping="Wrap" />
+                                                        <TextBlock Classes="muted" Text="{Binding Meta}" TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="4">
+                                                        <TextBlock FontWeight="Bold"
+                                                                   Foreground="{Binding AmountBrush}"
+                                                                   HorizontalAlignment="Right"
+                                                                   Text="{Binding Amount}" />
+                                                        <TextBlock Classes="muted"
+                                                                   HorizontalAlignment="Right"
+                                                                   Text="{Binding Balance}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </TabItem>
+                </TabControl>
+            </Border>
+
+            <Border Classes="panel">
+                <StackPanel Spacing="14">
+                    <StackPanel>
+                        <TextBlock Classes="panelTitle" Text="Actions" />
+                        <TextBlock Classes="muted"
+                                   Text="Purchases and sales."
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <WrapPanel>
+                        <Border Classes="listCard" Margin="0,0,14,14" Width="360">
+                            <StackPanel Spacing="10">
+                                <TextBlock Classes="eyebrow" Text="Food" />
+                                <TextBlock FontSize="20" FontWeight="SemiBold" Text="Buy food" />
+                                <ComboBox ItemsSource="{Binding FoodOptions}" SelectedItem="{Binding SelectedFoodType, Mode=TwoWay}" />
+                                <TextBox Watermark="Kilograms"
+                                         Text="{Binding FoodKgInput, Mode=TwoWay}" />
+                                <Button Classes="primary" Click="HandleBuyFood" Content="Buy food" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="listCard" Margin="0,0,14,14" Width="360">
+                            <StackPanel Spacing="10">
+                                <TextBlock Classes="eyebrow" Text="Animals" />
+                                <TextBlock FontSize="20" FontWeight="SemiBold" Text="Buy animal" />
+                                <TextBox Watermark="Animal name"
+                                         Text="{Binding AnimalNameInput, Mode=TwoWay}" />
+                                <ComboBox ItemsSource="{Binding SpeciesOptions}" SelectedItem="{Binding SelectedAnimalSpecies, Mode=TwoWay}" />
+                                <ComboBox ItemsSource="{Binding SexOptions}" SelectedItem="{Binding SelectedAnimalSex, Mode=TwoWay}" />
+                                <TextBox Watermark="Age in days"
+                                         Text="{Binding AnimalAgeInput, Mode=TwoWay}" />
+                                <CheckBox Content="Auto-buy habitat if needed"
+                                          IsChecked="{Binding AutoBuyHabitatForAnimal, Mode=TwoWay}" />
+                                <Button Classes="primary" Click="HandleBuyAnimal" Content="Buy animal" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="listCard" Margin="0,0,0,14" Width="360">
+                            <StackPanel Spacing="10">
+                                <TextBlock Classes="eyebrow" Text="Habitats" />
+                                <TextBlock FontSize="20" FontWeight="SemiBold" Text="Buy habitat" />
+                                <ComboBox ItemsSource="{Binding SpeciesOptions}" SelectedItem="{Binding SelectedHabitatSpecies, Mode=TwoWay}" />
+                                <Button Classes="primary" Click="HandleBuyHabitat" Content="Buy habitat" />
+                                <Button Classes="danger" Click="HandleSellHabitat" Content="Sell selected habitat" />
+                            </StackPanel>
+                        </Border>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <WrapPanel>
+                <Border Classes="panel" Margin="0,0,18,18" Width="860">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel>
+                                <TextBlock Classes="panelTitle" Text="{Binding AnimalHeader}" />
+                                <TextBlock Classes="muted" Text="Animals in the zoo." />
+                            </StackPanel>
+                            <Button Grid.Column="1" Classes="danger" Click="HandleSellAnimal" Content="Sell selected animal" />
+                        </Grid>
+
+                        <ListBox Grid.Row="1"
+                                 ItemsSource="{Binding AnimalRows}"
+                                 SelectedItem="{Binding SelectedAnimalRow, Mode=TwoWay}"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 MaxHeight="520">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="local:AnimalRow">
+                                    <Border Classes="listCard" Margin="0,0,0,10">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                                            <StackPanel Spacing="4">
+                                                <WrapPanel>
+                                                    <TextBlock Margin="0,0,8,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Name}" />
+                                                    <Border Background="{Binding MarkerBrush}"
+                                                            CornerRadius="999"
+                                                            Padding="8,2">
+                                                        <TextBlock Foreground="White"
+                                                                   FontSize="12"
+                                                                   FontWeight="Bold"
+                                                                   Text="{Binding Marker}" />
+                                                    </Border>
+                                                </WrapPanel>
+                                                <TextBlock Classes="muted" Text="{Binding Secondary}" />
+                                                <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="6">
+                                                <TextBlock FontWeight="SemiBold"
+                                                           Foreground="{Binding StatusBrush}"
+                                                           HorizontalAlignment="Right"
+                                                           Text="{Binding Status}" />
+                                                <TextBlock Classes="muted"
+                                                           HorizontalAlignment="Right"
+                                                           Text="{Binding FoodNeed}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+
+                <StackPanel Width="480" Spacing="18">
+                    <Border Classes="panel">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                            <StackPanel>
+                                <TextBlock Classes="panelTitle" Text="{Binding HabitatHeader}" />
+                                <TextBlock Classes="muted" Text="Enclosures." />
+                            </StackPanel>
+
+                            <ListBox Grid.Row="1"
+                                     ItemsSource="{Binding HabitatRows}"
+                                     SelectedItem="{Binding SelectedHabitatRow, Mode=TwoWay}"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     MaxHeight="260">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="local:HabitatRow">
+                                        <Border Classes="listCard" Margin="0,0,0,10">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="{Binding Title}" />
+                                                    <TextBlock Classes="muted" Text="{Binding Detail}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="6">
+                                                    <TextBlock FontSize="18"
+                                                               FontWeight="Bold"
+                                                               HorizontalAlignment="Right"
+                                                               Text="{Binding Occupancy}" />
+                                                    <TextBlock Foreground="{Binding HealthBrush}"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Right"
+                                                               Text="{Binding HealthLabel}" />
+                                                    <TextBlock Foreground="{Binding SellabilityBrush}"
+                                                               HorizontalAlignment="Right"
+                                                               Text="{Binding Sellability}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <WrapPanel>
+                        <Border Classes="softCard" Margin="0,0,14,14" Width="233">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="eyebrow" Text="Animal" />
+                                <TextBlock FontSize="20" FontWeight="SemiBold" Text="{Binding SelectedAnimalTitle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding SelectedAnimalSummary}" TextWrapping="Wrap" />
+                                <TextBlock Classes="muted" Text="{Binding SelectedAnimalDetail}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="softCard" Margin="0,0,0,14" Width="233">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="eyebrow" Text="Habitat" />
+                                <TextBlock FontSize="20" FontWeight="SemiBold" Text="{Binding SelectedHabitatTitle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding SelectedHabitatSummary}" TextWrapping="Wrap" />
+                                <TextBlock Classes="muted" Text="{Binding SelectedHabitatDetail}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </WrapPanel>
+
+                    <Border Classes="panel">
+                        <StackPanel Spacing="14">
+                            <StackPanel>
+                                <TextBlock Classes="panelTitle" Text="Revenue by species" />
+                                <TextBlock Classes="muted" Text="Visible animals only." />
+                            </StackPanel>
+
+                            <ItemsControl ItemsSource="{Binding RevenueRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:RevenueRow">
+                                        <Border Classes="listCard" Margin="0,0,0,10">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock FontSize="17" FontWeight="SemiBold" Text="{Binding Title}" />
+                                                    <TextBlock Classes="muted" Text="{Binding Detail}" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1"
+                                                           FontSize="18"
+                                                           FontWeight="Bold"
+                                                           Foreground="{Binding AccentBrush}"
+                                                           VerticalAlignment="Center"
+                                                           Text="{Binding Value}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </WrapPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</Window>
