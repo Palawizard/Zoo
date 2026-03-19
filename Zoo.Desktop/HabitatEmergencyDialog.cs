@@ -11,7 +11,9 @@ public sealed class HabitatEmergencyDialog : Window
     private HabitatEmergencyDialog(PendingHabitatEmergency emergency)
     {
         Title = "Habitat emergency";
-        Width = 540;
+        SizeToContent = SizeToContent.WidthAndHeight;
+        MinWidth = 460;
+        MaxWidth = 760;
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Brush.Parse("#0F1722");
@@ -52,6 +54,7 @@ public sealed class HabitatEmergencyDialog : Window
             Padding = new Thickness(22),
             Child = new StackPanel
             {
+                MaxWidth = 640,
                 Spacing = 16,
                 Children =
                 {

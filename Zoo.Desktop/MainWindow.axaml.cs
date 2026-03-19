@@ -37,8 +37,12 @@ public partial class MainWindow : Window
         if (confirmation is null)
             return;
 
+        var previousEventCount = ViewModel.EventCount;
         if (await ConfirmationDialog.ShowAsync(this, "Buy habitat", confirmation, confirmLabel: "Buy"))
+        {
             ViewModel.BuyHabitat();
+            await ShowNewEventDialogsAsync(previousEventCount);
+        }
     }
 
     private async void HandleBuyFood(object? sender, RoutedEventArgs e)
@@ -47,8 +51,12 @@ public partial class MainWindow : Window
         if (confirmation is null)
             return;
 
+        var previousEventCount = ViewModel.EventCount;
         if (await ConfirmationDialog.ShowAsync(this, "Buy food", confirmation, confirmLabel: "Buy"))
+        {
             ViewModel.BuyFood();
+            await ShowNewEventDialogsAsync(previousEventCount);
+        }
     }
 
     private async void HandleBuyAnimal(object? sender, RoutedEventArgs e)
@@ -57,8 +65,12 @@ public partial class MainWindow : Window
         if (confirmation is null)
             return;
 
+        var previousEventCount = ViewModel.EventCount;
         if (await ConfirmationDialog.ShowAsync(this, "Buy animal", confirmation, confirmLabel: "Buy"))
+        {
             ViewModel.BuyAnimal();
+            await ShowNewEventDialogsAsync(previousEventCount);
+        }
     }
 
     private async void HandleSellAnimal(object? sender, RoutedEventArgs e)
@@ -67,8 +79,12 @@ public partial class MainWindow : Window
         if (confirmation is null)
             return;
 
+        var previousEventCount = ViewModel.EventCount;
         if (await ConfirmationDialog.ShowAsync(this, "Sell animal", confirmation, confirmLabel: "Sell", isDangerous: true))
+        {
             ViewModel.SellSelectedAnimal();
+            await ShowNewEventDialogsAsync(previousEventCount);
+        }
     }
 
     private async void HandleSellHabitat(object? sender, RoutedEventArgs e)
@@ -77,8 +93,12 @@ public partial class MainWindow : Window
         if (confirmation is null)
             return;
 
+        var previousEventCount = ViewModel.EventCount;
         if (await ConfirmationDialog.ShowAsync(this, "Sell habitat", confirmation, confirmLabel: "Sell", isDangerous: true))
+        {
             ViewModel.SellSelectedHabitat();
+            await ShowNewEventDialogsAsync(previousEventCount);
+        }
     }
 
     private async Task AdvanceTurnsAsync(int? overrideDays = null)
@@ -91,8 +111,11 @@ public partial class MainWindow : Window
 
         while (completedDays < days)
         {
+            var eventCountBeforeTurn = ViewModel.EventCount;
             var state = ViewModel.AdvanceSingleTurn();
             completedDays++;
+
+            await ShowNewEventDialogsAsync(eventCountBeforeTurn);
 
             if (state != TurnAdvanceState.AwaitingHabitatEmergencyDecision)
                 continue;
@@ -119,8 +142,12 @@ public partial class MainWindow : Window
                 return false;
             }
 
+            var previousEventCount = ViewModel.EventCount;
             if (ViewModel.TryResolvePendingHabitatEmergency(resolution.Value, out var failureReason))
+            {
+                await ShowNewEventDialogsAsync(previousEventCount);
                 continue;
+            }
 
             await ConfirmationDialog.ShowAsync(
                 this,
@@ -132,5 +159,12 @@ public partial class MainWindow : Window
         }
 
         return true;
+    }
+
+    private async Task ShowNewEventDialogsAsync(int previousEventCount)
+    {
+        var newEvents = ViewModel.GetNewEventRows(previousEventCount);
+        foreach (var eventRow in newEvents)
+            await EventDialog.ShowAsync(this, eventRow);
     }
 }

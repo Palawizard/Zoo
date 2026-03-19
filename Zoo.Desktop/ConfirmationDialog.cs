@@ -15,7 +15,9 @@ public sealed class ConfirmationDialog : Window
         bool isDangerous)
     {
         Title = title;
-        Width = 460;
+        SizeToContent = SizeToContent.WidthAndHeight;
+        MinWidth = 420;
+        MaxWidth = 720;
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Brush.Parse("#0F1722");
@@ -71,6 +73,7 @@ public sealed class ConfirmationDialog : Window
             Padding = new Thickness(22),
             Child = new StackPanel
             {
+                MaxWidth = 620,
                 Spacing = 18,
                 Children =
                 {
@@ -86,6 +89,7 @@ public sealed class ConfirmationDialog : Window
                         Text = message,
                         FontSize = 15,
                         Foreground = Brush.Parse("#B8C5D3"),
+                        MaxWidth = 580,
                         TextWrapping = TextWrapping.Wrap
                     },
                     actions
