@@ -12,6 +12,8 @@ namespace Zoo.Application.Simulation;
 
 public sealed class ZooSimulationService
 {
+    private const decimal DeadAnimalSaleMultiplier = 0.05m;
+
     private readonly List<ZooAnimal> _animals = new();
     private readonly AnimalMarket _animalMarket = new();
     private readonly FoodMarket _foodMerchant = new();
@@ -100,14 +102,22 @@ public sealed class ZooSimulationService
         ArgumentNullException.ThrowIfNull(animal);
         if (!_animals.Contains(animal)) return false;
 
+        var revenue = EstimateAnimalSalePrice(animal);
         RemoveAnimalFromZoo(animal);
 
-        var revenue = _animalMarket.SellAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
         AddCash(revenue, $"Sell animal: {animal.Species}", "Animal");
         AddEvent(
             ZooEventType.AnimalSold,
             $"{animal.Name} ({animal.Species}) was sold for {revenue:0.##}€.");
         return true;
+    }
+
+    public decimal EstimateAnimalSalePrice(ZooAnimal animal)
+    {
+        ArgumentNullException.ThrowIfNull(animal);
+
+        var basePrice = _animalMarket.SellAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
+        return animal.IsAlive ? basePrice : decimal.Round(basePrice * DeadAnimalSaleMultiplier, 2);
     }
 
     public bool BuyHabitat(SpeciesType species)

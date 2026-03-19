@@ -30,7 +30,17 @@ public abstract class Animal
     public bool IsSick => Health == HealthStatus.Sick;
 
     public void MakeSick() => Health = HealthStatus.Sick;
-    public void Kill() => Health = HealthStatus.Dead;
+    public void Kill()
+    {
+        Health = HealthStatus.Dead;
+        IsHungry = false;
+        HungerDebtDays = 0;
+        IsGestating = false;
+        GestationRemainingDays = 0;
+        PendingEggs = 0;
+        EggIncubationRemainingDays = 0;
+        DiseaseRemainingDays = 0;
+    }
     public void Heal() => Health = HealthStatus.Healthy;
     
     private const decimal DiseaseDeathProbability = 0.10m;
