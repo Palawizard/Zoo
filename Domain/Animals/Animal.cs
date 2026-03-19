@@ -23,6 +23,7 @@ public abstract class Animal
 
     private const int AdultArrivalReproductionBlockDays = 30;
     private const decimal GestatingFemaleFoodMultiplier = 2m;
+    private const int StarvationDeathMultiplier = 2;
 
     public HealthStatus Health { get; private set; } = HealthStatus.Healthy;
     public bool IsAlive => Health != HealthStatus.Dead;
@@ -95,6 +96,12 @@ public abstract class Animal
 
         if (!IsAlive)
             return new AnimalDailyOutcome();
+
+        if (HasReachedStarvationDeathThreshold())
+        {
+            Kill();
+            return new AnimalDailyOutcome(DiedOfHunger: true);
+        }
 
         if (AgeDays < Profile.LifeExpectancyDays)
             return new AnimalDailyOutcome();
@@ -347,5 +354,11 @@ public abstract class Animal
         var dailyProbability = 1d - Math.Pow(1d - (double)annualProbability, 1d / 365d);
 
         return (decimal)dailyProbability;
+    }
+
+    private bool HasReachedStarvationDeathThreshold()
+    {
+        var threshold = Math.Max(1, Profile.DaysBeforeHungry * StarvationDeathMultiplier);
+        return HungerDebtDays >= threshold;
     }
 }

@@ -32,4 +32,23 @@ public sealed class HungerRulesTests
         Assert.True(tigress.IsGestating);
         Assert.Equal(20m, tigress.GetDailyFoodNeedKg());
     }
+
+    [Fact]
+    public void TigerDiesAfterExtendedStarvation()
+    {
+        var tiger = new ZooAnimal("Rajah", SexType.Male, SpeciesType.Tiger);
+
+        for (var day = 0; day < 4; day++)
+        {
+            tiger.ApplyDailyFeeding(0m);
+            var outcome = tiger.AdvanceOneDay();
+
+            if (day < 3)
+                Assert.False(outcome.DiedOfHunger);
+            else
+                Assert.True(outcome.DiedOfHunger);
+        }
+
+        Assert.False(tiger.IsAlive);
+    }
 }

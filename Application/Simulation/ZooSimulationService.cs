@@ -20,11 +20,15 @@ public sealed class ZooSimulationService
     private readonly Dictionary<Guid, Guid> _monogamousPairs = new();
     private int _lastExceptionalEventsMonth = -1;
     private readonly VisitorRevenueCalculator _visitorRevenueCalculator = new();
+    private readonly bool _interactiveHabitatEmergencies;
+    private bool _pendingTurnAwaitingCompletion;
+    private bool _pendingTurnRequiresYearlyProcessing;
 
     public IReadOnlyList<Habitat> Habitats => _habitats;
 
     public IReadOnlyList<ZooAnimal> Animals => _animals;
     public IReadOnlyList<ZooEvent> Events => _events;
+    public PendingHabitatEmergency? PendingHabitatEmergency { get; private set; }
 
     public decimal MeatStockKg { get; private set; }
     public decimal SeedsStockKg { get; private set; }
@@ -42,7 +46,8 @@ public sealed class ZooSimulationService
         IEnumerable<ZooAnimal>? animals = null,
         decimal meatStockKg = 0m,
         decimal seedsStockKg = 0m,
-        decimal cash = 80000m)
+        decimal cash = 80000m,
+        bool interactiveHabitatEmergencies = false)
     {
         if (meatStockKg < 0m)
             throw new ArgumentOutOfRangeException(nameof(meatStockKg), "Stock cannot be negative.");
@@ -54,6 +59,7 @@ public sealed class ZooSimulationService
         MeatStockKg = meatStockKg;
         SeedsStockKg = seedsStockKg;
         Cash = cash;
+        _interactiveHabitatEmergencies = interactiveHabitatEmergencies;
         Ledger.Add(new Transaction(DateTime.UtcNow, cash, "Initial zoo budget", "Init", Cash));
         AddEvent(
             ZooEventType.SimulationInitialized,
@@ -219,15 +225,24 @@ public sealed class ZooSimulationService
             var dailyOutcome = animal.AdvanceOneDay();
             if (dailyOutcome.DiedOfOldAge)
             {
+                RemoveAnimalFromHabitats(animal);
                 AddEvent(
                     ZooEventType.EndOfLife,
                     $"{animal.Name} died of old age.");
             }
             else if (dailyOutcome.DiedOfDisease)
             {
+                RemoveAnimalFromHabitats(animal);
                 AddEvent(
                     ZooEventType.DiseaseDeath,
                     $"{animal.Name} died from disease.");
+            }
+            else if (dailyOutcome.DiedOfHunger)
+            {
+                RemoveAnimalFromHabitats(animal);
+                AddEvent(
+                    ZooEventType.HungerDeath,
+                    $"{animal.Name} died from starvation.");
             }
 
             if (animal.TryCatchDiseaseToday())
@@ -276,9 +291,8 @@ public sealed class ZooSimulationService
 
         var habitatIndex = Random.Shared.Next(_habitats.Count);
         var habitat = _habitats[habitatIndex];
-        _habitats.RemoveAt(habitatIndex);
-
-        AddEvent(
+        DestroyHabitat(
+            habitat,
             ZooEventType.Fire,
             $"A fire destroyed one {habitat.Species} habitat.");
     }
@@ -334,7 +348,11 @@ public sealed class ZooSimulationService
 
         RemovePairing(animal.Id);
         _animals.Remove(animal);
+        RemoveAnimalFromHabitats(animal);
+    }
 
+    private void RemoveAnimalFromHabitats(ZooAnimal animal)
+    {
         foreach (var habitat in _habitats)
             habitat.RemoveAnimal(animal);
     }
@@ -809,6 +827,9 @@ public sealed class ZooSimulationService
 
     public void NextTurn()
     {
+        if (PendingHabitatEmergency is not null || _pendingTurnAwaitingCompletion)
+            throw new InvalidOperationException("Resolve the pending habitat emergency before advancing the simulation.");
+
         TurnNumber++;
         ProcessDailyTurn();
         AdvanceCalendar();
@@ -826,6 +847,43 @@ public sealed class ZooSimulationService
             $"Turn {TurnNumber} completed. Current date is {CurrentDayOfMonth}/{CurrentMonth}/{CurrentYear}.");
     }
 
+    public TurnAdvanceState AdvanceTurnWithInterruptions()
+    {
+        if (!_interactiveHabitatEmergencies)
+        {
+            NextTurn();
+            return TurnAdvanceState.Completed;
+        }
+
+        if (PendingHabitatEmergency is not null || _pendingTurnAwaitingCompletion)
+            return TurnAdvanceState.AwaitingHabitatEmergencyDecision;
+
+        TurnNumber++;
+        ProcessDailyTurn();
+        AdvanceCalendar();
+
+        if (CurrentDayOfMonth == 1)
+        {
+            _pendingTurnRequiresYearlyProcessing = CurrentMonth == 1;
+
+            if (!ProcessMonthlyTurnWithPossiblePause())
+            {
+                _pendingTurnAwaitingCompletion = true;
+                return TurnAdvanceState.AwaitingHabitatEmergencyDecision;
+            }
+
+            if (_pendingTurnRequiresYearlyProcessing)
+                ProcessYearlyTurn();
+        }
+
+        AddEvent(
+            ZooEventType.TurnAdvanced,
+            $"Turn {TurnNumber} completed. Current date is {CurrentDayOfMonth}/{CurrentMonth}/{CurrentYear}.");
+
+        _pendingTurnRequiresYearlyProcessing = false;
+        return TurnAdvanceState.Completed;
+    }
+
     private void ProcessDailyTurn()
     {
         ProcessDailyFeeding();
@@ -837,6 +895,50 @@ public sealed class ZooSimulationService
     private void ProcessMonthlyTurn()
     {
         TryApplyMonthlyExceptionalEvents(CurrentDayOfMonth);
+        ProgressMonthlyReproductionCooldowns();
+        TryEggLayingForCurrentMonth();
+        
+        foreach (var habitat in _habitats)
+        {
+            var monthlyOutcome = habitat.ProcessMonth(Random.Shared);
+
+            foreach (var animal in monthlyOutcome.NewlySickAnimals)
+            {
+                AddEvent(
+                    ZooEventType.Disease,
+                    $"{animal.Name} became sick in the {habitat.Species} habitat.");
+            }
+
+            foreach (var animal in monthlyOutcome.NaturalLosses)
+            {
+                AddEvent(
+                    ZooEventType.HabitatMonthlyLoss,
+                    $"{animal.Name} died during monthly habitat losses in the {habitat.Species} habitat.");
+            }
+
+            foreach (var animal in monthlyOutcome.OverpopulationLosses)
+            {
+                AddEvent(
+                    ZooEventType.OverpopulationDeath,
+                    $"{animal.Name} died because of overpopulation in the {habitat.Species} habitat.");
+            }
+        }
+
+        CollectMonthlyVisitorRevenue();
+    }
+
+    private bool ProcessMonthlyTurnWithPossiblePause()
+    {
+        TryApplyMonthlyExceptionalEvents(CurrentDayOfMonth);
+        if (PendingHabitatEmergency is not null)
+            return false;
+
+        CompleteMonthlyTurn();
+        return true;
+    }
+
+    private void CompleteMonthlyTurn()
+    {
         ProgressMonthlyReproductionCooldowns();
         TryEggLayingForCurrentMonth();
         
@@ -916,5 +1018,134 @@ public sealed class ZooSimulationService
         
         CurrentMonth = 1;
         CurrentYear++;
+    }
+
+    public void DestroyHabitat(Habitat habitat, ZooEventType causeType, string description)
+    {
+        ArgumentNullException.ThrowIfNull(habitat);
+
+        if (!_habitats.Remove(habitat))
+            return;
+
+        var displacedAnimals = habitat.Animals
+            .OfType<ZooAnimal>()
+            .Where(animal => animal.IsAlive)
+            .ToList();
+
+        foreach (var animal in displacedAnimals)
+            habitat.RemoveAnimal(animal);
+
+        AddEvent(causeType, description);
+
+        if (displacedAnimals.Count == 0)
+            return;
+
+        if (!_interactiveHabitatEmergencies)
+        {
+            EuthanizeDisplacedAnimals(habitat.Species, displacedAnimals);
+            return;
+        }
+
+        PendingHabitatEmergency = new PendingHabitatEmergency(
+            habitat.Id,
+            habitat.Species,
+            causeType,
+            description,
+            displacedAnimals,
+            habitat.BuyPrice);
+    }
+
+    public bool TryResolvePendingHabitatEmergency(HabitatEmergencyResolution resolution, out string failureReason)
+    {
+        failureReason = string.Empty;
+
+        if (PendingHabitatEmergency is null)
+        {
+            failureReason = "No habitat emergency is pending.";
+            return false;
+        }
+
+        var pendingEmergency = PendingHabitatEmergency;
+
+        if (resolution == HabitatEmergencyResolution.RehouseAnimals &&
+            !TryRehouseDisplacedAnimals(pendingEmergency, out failureReason))
+        {
+            return false;
+        }
+
+        if (resolution == HabitatEmergencyResolution.EuthanizeAnimals)
+        {
+            EuthanizeDisplacedAnimals(pendingEmergency.Species, pendingEmergency.DisplacedAnimals);
+            failureReason = string.Empty;
+        }
+        else if (resolution != HabitatEmergencyResolution.RehouseAnimals)
+        {
+            failureReason = "Unknown habitat emergency resolution.";
+            return false;
+        }
+
+        PendingHabitatEmergency = null;
+
+        if (_pendingTurnAwaitingCompletion)
+        {
+            CompleteMonthlyTurn();
+
+            if (_pendingTurnRequiresYearlyProcessing)
+                ProcessYearlyTurn();
+
+            AddEvent(
+                ZooEventType.TurnAdvanced,
+                $"Turn {TurnNumber} completed. Current date is {CurrentDayOfMonth}/{CurrentMonth}/{CurrentYear}.");
+        }
+
+        _pendingTurnAwaitingCompletion = false;
+        _pendingTurnRequiresYearlyProcessing = false;
+        return true;
+    }
+
+    private bool TryRehouseDisplacedAnimals(PendingHabitatEmergency pendingEmergency, out string failureReason)
+    {
+        var availableSlots = GetAvailableHabitatSlots(pendingEmergency.Species);
+        var displacedCount = pendingEmergency.DisplacedAnimals.Count(animal => animal.IsAlive);
+
+        if (availableSlots < displacedCount)
+        {
+            if (!BuyHabitat(pendingEmergency.Species))
+            {
+                failureReason = $"Not enough cash to buy a replacement {pendingEmergency.Species} habitat.";
+                return false;
+            }
+        }
+
+        foreach (var animal in pendingEmergency.DisplacedAnimals.Where(animal => animal.IsAlive))
+        {
+            if (TryPlaceAnimalInHabitat(animal))
+                continue;
+
+            failureReason = $"No free {pendingEmergency.Species} habitat slot is available for {animal.Name}.";
+            return false;
+        }
+
+        AddEvent(
+            ZooEventType.HabitatAnimalsRehoused,
+            $"{displacedCount} animal(s) from the destroyed {pendingEmergency.Species} habitat were rehoused.");
+        failureReason = string.Empty;
+        return true;
+    }
+
+    private void EuthanizeDisplacedAnimals(SpeciesType species, IReadOnlyList<ZooAnimal> displacedAnimals)
+    {
+        var euthanizedCount = 0;
+
+        foreach (var animal in displacedAnimals.Where(animal => animal.IsAlive))
+        {
+            RemovePairing(animal.Id);
+            animal.Kill();
+            euthanizedCount++;
+        }
+
+        AddEvent(
+            ZooEventType.HabitatAnimalsEuthanized,
+            $"{euthanizedCount} animal(s) from the destroyed {species} habitat were euthanized.");
     }
 }   
