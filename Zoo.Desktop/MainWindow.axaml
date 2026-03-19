@@ -16,9 +16,9 @@
         MinHeight="720">
     <Window.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#F4E6D0" Offset="0" />
-            <GradientStop Color="#EEF5EA" Offset="0.55" />
-            <GradientStop Color="#E7F1F4" Offset="1" />
+            <GradientStop Color="#081018" Offset="0" />
+            <GradientStop Color="#0C1622" Offset="0.55" />
+            <GradientStop Color="#101B29" Offset="1" />
         </LinearGradientBrush>
     </Window.Background>
 
