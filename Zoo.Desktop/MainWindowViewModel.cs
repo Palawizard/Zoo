@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia.Media;
 using Zoo.Application.Simulation;
 using Zoo.Domain.Animals;
+using Zoo.Domain.Events;
 using Zoo.Domain.Feeding;
 using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
@@ -16,9 +17,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly FoodMarket _foodMarket = new();
 
     private string _advanceDaysInput = "7";
-    private string _foodKgInput = "50";
-    private string _animalNameInput = "Nova";
-    private string _animalAgeInput = "365";
+    private string _foodKgInput = string.Empty;
+    private string _animalNameInput = string.Empty;
+    private string _animalAgeInput = string.Empty;
     private bool _autoBuyHabitatForAnimal = true;
     private SpeciesType _selectedHabitatSpecies = SpeciesType.Tiger;
     private FoodType _selectedFoodType = FoodType.Meat;
@@ -293,6 +294,17 @@ public sealed class MainWindowViewModel : ObservableObject
     public string LedgerHeader => $"Ledger ({LedgerRows.Count})";
     public int EventCount => _simulation.Events.Count;
     public PendingHabitatEmergency? PendingHabitatEmergency => _simulation.PendingHabitatEmergency;
+    public IReadOnlyList<EventRow> GetNewEventRows(int previousEventCount)
+    {
+        if (previousEventCount < 0)
+            previousEventCount = 0;
+
+        return _simulation.Events
+            .Skip(previousEventCount)
+            .Where(ShouldShowPopupForEvent)
+            .Select(zooEvent => new EventRow(zooEvent))
+            .ToList();
+    }
 
     public void AdvanceTurns(int? overrideDays = null)
     {
@@ -422,8 +434,10 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         var animal = SelectedAnimalRow.Animal;
-        var revenue = _animalMarket.SellAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
-        return $"Sell {animal.Name} for {revenue:0.##} EUR?";
+        var revenue = _simulation.EstimateAnimalSalePrice(animal);
+        return animal.IsAlive
+            ? $"Sell {animal.Name} for {revenue:0.##} EUR?"
+            : $"Sell {animal.Name}'s remains for {revenue:0.##} EUR?";
     }
 
     public string? GetSellHabitatConfirmationMessage()
@@ -536,8 +550,9 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var animalName = SelectedAnimalRow.Animal.Name;
-        if (_simulation.SellAnimal(SelectedAnimalRow.Animal))
+        var animal = SelectedAnimalRow.Animal;
+        var animalName = animal.Name;
+        if (_simulation.SellAnimal(animal))
         {
             RefreshSnapshot();
             SetMessage($"{animalName} was sold.", isError: false);
@@ -580,6 +595,7 @@ public sealed class MainWindowViewModel : ObservableObject
         var visibleCount = visibleAnimals.Count;
         var projectedRevenueBySpecies = _simulation.CalculateVisitorRevenueBySpecies(_simulation.IsHighSeason);
         var totalProjectedRevenue = projectedRevenueBySpecies.Values.Sum();
+        var aliveAnimals = animals.Where(a => a.IsAlive).ToList();
 
         HeaderDate = $"Day {_simulation.CurrentDayOfMonth:00}/{_simulation.CurrentMonth:00}/Year {_simulation.CurrentYear} | Turn {_simulation.TurnNumber}";
         SeasonLabel = _simulation.IsHighSeason ? "High season" : "Low season";
@@ -589,8 +605,8 @@ public sealed class MainWindowViewModel : ObservableObject
         CashCaption = $"Last balance recorded in {_simulation.Ledger.Transactions.Count} ledger entries.";
         FoodMetric = $"{_simulation.MeatStockKg:0.##} kg meat | {_simulation.SeedsStockKg:0.##} kg seeds";
         FoodCaption = "Food inventory available for the next feeding cycles.";
-        PopulationMetric = $"{animals.Count(a => a.IsAlive)} alive / {animals.Count} total";
-        PopulationCaption = $"{animals.Count(a => a.IsSick)} sick | {animals.Count(a => a.IsHungry)} hungry";
+        PopulationMetric = $"{aliveAnimals.Count} alive / {animals.Count} total";
+        PopulationCaption = $"{aliveAnimals.Count(a => a.IsSick)} sick | {aliveAnimals.Count(a => a.IsHungry)} hungry";
         ExposureMetric = $"{visibleCount} on show";
         ExposureCaption = $"{habitats.Sum(h => h.Animals.Count)}/{Math.Max(1, habitats.Sum(h => h.Capacity))} occupied slots across habitats";
         RevenueMetric = $"{totalProjectedRevenue:0.##} EUR";
@@ -711,14 +727,18 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void UpdateWatchlist(IReadOnlyList<ZooAnimal> animals, IReadOnlyList<Habitat> habitats, int visibleCount)
     {
-        var sickCount = animals.Count(animal => animal.IsSick);
-        var hungryCount = animals.Count(animal => animal.IsHungry);
-        var gestatingCount = animals.Count(animal => animal.IsGestating || animal.EggIncubationRemainingDays > 0);
+        var aliveAnimals = animals.Where(animal => animal.IsAlive).ToList();
+        var sickCount = aliveAnimals.Count(animal => animal.IsSick);
+        var hungryCount = aliveAnimals.Count(animal => animal.IsHungry);
+        var gestatingCount = aliveAnimals.Count(animal => animal.IsGestating || animal.EggIncubationRemainingDays > 0);
         var emptyHabitatCount = habitats.Count(habitat => habitat.Animals.Count == 0);
+        var watchCount = sickCount + hungryCount + gestatingCount;
 
-        WatchlistTitle = sickCount + hungryCount + gestatingCount == 0
+        WatchlistTitle = watchCount == 0
             ? "No immediate operational alerts"
-            : $"{sickCount + hungryCount + gestatingCount} watch item(s) need attention";
+            : watchCount == 1
+                ? "1 issue needs attention"
+                : $"{watchCount} issues need attention";
         WatchlistSummary =
             $"{sickCount} sick | {hungryCount} hungry | {gestatingCount} hidden from visitors | {emptyHabitatCount} empty habitat(s)";
     }
@@ -742,6 +762,11 @@ public sealed class MainWindowViewModel : ObservableObject
             Domain.Events.ZooEventType.Fire or
             Domain.Events.ZooEventType.Theft or
             Domain.Events.ZooEventType.InfantDeath;
+    }
+
+    private static bool ShouldShowPopupForEvent(ZooEvent zooEvent)
+    {
+        return zooEvent.Type is not ZooEventType.TurnAdvanced;
     }
 
     private void SyncCollection<T>(ObservableCollection<T> target, IEnumerable<T> items)
