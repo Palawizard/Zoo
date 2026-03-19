@@ -1,0 +1,636 @@
+using System.Collections.ObjectModel;
+using System.Linq;
+using Avalonia.Media;
+using Zoo.Application.Simulation;
+using Zoo.Domain.Animals;
+using Zoo.Domain.Feeding;
+using Zoo.Domain.Habitats;
+
+namespace Zoo.Desktop;
+
+public sealed class MainWindowViewModel : ObservableObject
+{
+    private readonly ZooSimulationService _simulation = new(cash: 80000m);
+
+    private string _advanceDaysInput = "7";
+    private string _foodKgInput = "50";
+    private string _animalNameInput = "Nova";
+    private string _animalAgeInput = "365";
+    private bool _autoBuyHabitatForAnimal = true;
+    private SpeciesType _selectedHabitatSpecies = SpeciesType.Tiger;
+    private FoodType _selectedFoodType = FoodType.Meat;
+    private SpeciesType _selectedAnimalSpecies = SpeciesType.Tiger;
+    private SexType _selectedAnimalSex = SexType.Female;
+    private AnimalRow? _selectedAnimalRow;
+    private HabitatRow? _selectedHabitatRow;
+    private string _headerDate = string.Empty;
+    private string _seasonLabel = string.Empty;
+    private string _seasonDetail = string.Empty;
+    private string _cashMetric = string.Empty;
+    private string _cashCaption = string.Empty;
+    private string _foodMetric = string.Empty;
+    private string _foodCaption = string.Empty;
+    private string _populationMetric = string.Empty;
+    private string _populationCaption = string.Empty;
+    private string _exposureMetric = string.Empty;
+    private string _exposureCaption = string.Empty;
+    private string _revenueMetric = string.Empty;
+    private string _revenueCaption = string.Empty;
+    private string _watchlistTitle = string.Empty;
+    private string _watchlistSummary = string.Empty;
+    private string _selectedAnimalTitle = string.Empty;
+    private string _selectedAnimalSummary = string.Empty;
+    private string _selectedAnimalDetail = string.Empty;
+    private string _selectedHabitatTitle = string.Empty;
+    private string _selectedHabitatSummary = string.Empty;
+    private string _selectedHabitatDetail = string.Empty;
+    private string _statusMessage = string.Empty;
+    private IBrush _messageBackground = UiBrushes.MessageGoodFill;
+    private IBrush _messageBorderBrush = UiBrushes.MessageGoodBorder;
+
+    public MainWindowViewModel()
+    {
+        RefreshSnapshot();
+        SetMessage("Desktop dashboard ready. The zoo starts with 80 000 EUR in cash.", isError: false);
+    }
+
+    public IReadOnlyList<SpeciesType> SpeciesOptions { get; } = Enum.GetValues<SpeciesType>();
+    public IReadOnlyList<SexType> SexOptions { get; } = Enum.GetValues<SexType>();
+    public IReadOnlyList<FoodType> FoodOptions { get; } = Enum.GetValues<FoodType>();
+
+    public ObservableCollection<AnimalRow> AnimalRows { get; } = new();
+    public ObservableCollection<HabitatRow> HabitatRows { get; } = new();
+    public ObservableCollection<EventRow> EventRows { get; } = new();
+    public ObservableCollection<EventRow> ImportantEventRows { get; } = new();
+    public ObservableCollection<LedgerRow> LedgerRows { get; } = new();
+    public ObservableCollection<RevenueRow> RevenueRows { get; } = new();
+
+    public string AdvanceDaysInput
+    {
+        get => _advanceDaysInput;
+        set => SetProperty(ref _advanceDaysInput, value);
+    }
+
+    public string FoodKgInput
+    {
+        get => _foodKgInput;
+        set => SetProperty(ref _foodKgInput, value);
+    }
+
+    public string AnimalNameInput
+    {
+        get => _animalNameInput;
+        set => SetProperty(ref _animalNameInput, value);
+    }
+
+    public string AnimalAgeInput
+    {
+        get => _animalAgeInput;
+        set => SetProperty(ref _animalAgeInput, value);
+    }
+
+    public bool AutoBuyHabitatForAnimal
+    {
+        get => _autoBuyHabitatForAnimal;
+        set => SetProperty(ref _autoBuyHabitatForAnimal, value);
+    }
+
+    public SpeciesType SelectedHabitatSpecies
+    {
+        get => _selectedHabitatSpecies;
+        set => SetProperty(ref _selectedHabitatSpecies, value);
+    }
+
+    public FoodType SelectedFoodType
+    {
+        get => _selectedFoodType;
+        set => SetProperty(ref _selectedFoodType, value);
+    }
+
+    public SpeciesType SelectedAnimalSpecies
+    {
+        get => _selectedAnimalSpecies;
+        set => SetProperty(ref _selectedAnimalSpecies, value);
+    }
+
+    public SexType SelectedAnimalSex
+    {
+        get => _selectedAnimalSex;
+        set => SetProperty(ref _selectedAnimalSex, value);
+    }
+
+    public AnimalRow? SelectedAnimalRow
+    {
+        get => _selectedAnimalRow;
+        set
+        {
+            if (SetProperty(ref _selectedAnimalRow, value))
+                UpdateSelectedAnimalDetails();
+        }
+    }
+
+    public HabitatRow? SelectedHabitatRow
+    {
+        get => _selectedHabitatRow;
+        set
+        {
+            if (SetProperty(ref _selectedHabitatRow, value))
+                UpdateSelectedHabitatDetails();
+        }
+    }
+
+    public string HeaderDate
+    {
+        get => _headerDate;
+        private set => SetProperty(ref _headerDate, value);
+    }
+
+    public string SeasonLabel
+    {
+        get => _seasonLabel;
+        private set => SetProperty(ref _seasonLabel, value);
+    }
+
+    public string SeasonDetail
+    {
+        get => _seasonDetail;
+        private set => SetProperty(ref _seasonDetail, value);
+    }
+
+    public string CashMetric
+    {
+        get => _cashMetric;
+        private set => SetProperty(ref _cashMetric, value);
+    }
+
+    public string CashCaption
+    {
+        get => _cashCaption;
+        private set => SetProperty(ref _cashCaption, value);
+    }
+
+    public string FoodMetric
+    {
+        get => _foodMetric;
+        private set => SetProperty(ref _foodMetric, value);
+    }
+
+    public string FoodCaption
+    {
+        get => _foodCaption;
+        private set => SetProperty(ref _foodCaption, value);
+    }
+
+    public string PopulationMetric
+    {
+        get => _populationMetric;
+        private set => SetProperty(ref _populationMetric, value);
+    }
+
+    public string PopulationCaption
+    {
+        get => _populationCaption;
+        private set => SetProperty(ref _populationCaption, value);
+    }
+
+    public string ExposureMetric
+    {
+        get => _exposureMetric;
+        private set => SetProperty(ref _exposureMetric, value);
+    }
+
+    public string ExposureCaption
+    {
+        get => _exposureCaption;
+        private set => SetProperty(ref _exposureCaption, value);
+    }
+
+    public string RevenueMetric
+    {
+        get => _revenueMetric;
+        private set => SetProperty(ref _revenueMetric, value);
+    }
+
+    public string RevenueCaption
+    {
+        get => _revenueCaption;
+        private set => SetProperty(ref _revenueCaption, value);
+    }
+
+    public string WatchlistTitle
+    {
+        get => _watchlistTitle;
+        private set => SetProperty(ref _watchlistTitle, value);
+    }
+
+    public string WatchlistSummary
+    {
+        get => _watchlistSummary;
+        private set => SetProperty(ref _watchlistSummary, value);
+    }
+
+    public string SelectedAnimalTitle
+    {
+        get => _selectedAnimalTitle;
+        private set => SetProperty(ref _selectedAnimalTitle, value);
+    }
+
+    public string SelectedAnimalSummary
+    {
+        get => _selectedAnimalSummary;
+        private set => SetProperty(ref _selectedAnimalSummary, value);
+    }
+
+    public string SelectedAnimalDetail
+    {
+        get => _selectedAnimalDetail;
+        private set => SetProperty(ref _selectedAnimalDetail, value);
+    }
+
+    public string SelectedHabitatTitle
+    {
+        get => _selectedHabitatTitle;
+        private set => SetProperty(ref _selectedHabitatTitle, value);
+    }
+
+    public string SelectedHabitatSummary
+    {
+        get => _selectedHabitatSummary;
+        private set => SetProperty(ref _selectedHabitatSummary, value);
+    }
+
+    public string SelectedHabitatDetail
+    {
+        get => _selectedHabitatDetail;
+        private set => SetProperty(ref _selectedHabitatDetail, value);
+    }
+
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        private set => SetProperty(ref _statusMessage, value);
+    }
+
+    public IBrush MessageBackground
+    {
+        get => _messageBackground;
+        private set => SetProperty(ref _messageBackground, value);
+    }
+
+    public IBrush MessageBorderBrush
+    {
+        get => _messageBorderBrush;
+        private set => SetProperty(ref _messageBorderBrush, value);
+    }
+
+    public string AnimalHeader => $"Animals ({AnimalRows.Count})";
+    public string HabitatHeader => $"Habitats ({HabitatRows.Count})";
+    public string EventHeader => $"Recent events ({EventRows.Count})";
+    public string ImportantEventHeader => $"Important events ({ImportantEventRows.Count})";
+    public string LedgerHeader => $"Ledger ({LedgerRows.Count})";
+
+    public void AdvanceTurns(int? overrideDays = null)
+    {
+        if (!TryReadPositiveInt(overrideDays?.ToString() ?? AdvanceDaysInput, "Advance days", out var days))
+            return;
+
+        var previousEventCount = _simulation.Events.Count;
+
+        for (var day = 0; day < days; day++)
+            _simulation.NextTurn();
+
+        RefreshSnapshot();
+
+        var newEvents = _simulation.Events.Count - previousEventCount;
+        SetMessage($"{days} day(s) simulated. {newEvents} new event(s) logged.", isError: false);
+    }
+
+    public void BuyHabitat()
+    {
+        if (_simulation.BuyHabitat(SelectedHabitatSpecies))
+        {
+            RefreshSnapshot(selectedHabitatId: _simulation.Habitats.Last().Id);
+            SetMessage($"{SelectedHabitatSpecies} habitat purchased.", isError: false);
+            return;
+        }
+
+        SetMessage($"Not enough cash to buy a {SelectedHabitatSpecies} habitat.", isError: true);
+    }
+
+    public void BuyFood()
+    {
+        if (!TryReadPositiveDecimal(FoodKgInput, "Food quantity", out var kilograms))
+            return;
+
+        if (_simulation.BuyFood(SelectedFoodType, kilograms))
+        {
+            RefreshSnapshot();
+            SetMessage($"{kilograms:0.##} kg of {SelectedFoodType} purchased.", isError: false);
+            return;
+        }
+
+        SetMessage("Food purchase denied because the zoo does not have enough cash.", isError: true);
+    }
+
+    public void BuyAnimal()
+    {
+        var name = AnimalNameInput.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            SetMessage("Animal name is required.", isError: true);
+            return;
+        }
+
+        if (!TryReadPositiveInt(AnimalAgeInput, "Animal age", out var ageDays, allowZero: true))
+            return;
+
+        var habitat = SelectHabitatForSpecies(SelectedAnimalSpecies);
+        if (habitat is null)
+        {
+            if (!AutoBuyHabitatForAnimal)
+            {
+                SetMessage($"No free {SelectedAnimalSpecies} habitat. Enable auto-buy or purchase one first.", isError: true);
+                return;
+            }
+
+            if (!_simulation.BuyHabitat(SelectedAnimalSpecies))
+            {
+                SetMessage($"No free {SelectedAnimalSpecies} habitat and not enough cash to auto-buy one.", isError: true);
+                return;
+            }
+
+            habitat = SelectHabitatForSpecies(SelectedAnimalSpecies);
+            if (habitat is null)
+            {
+                SetMessage("Habitat purchase succeeded but no compatible slot was found afterwards.", isError: true);
+                return;
+            }
+        }
+
+        var animal = new ZooAnimal(name, SelectedAnimalSex, SelectedAnimalSpecies, ageDays);
+        if (!_simulation.BuyAnimal(animal))
+        {
+            SetMessage("Animal purchase denied because the zoo does not have enough cash.", isError: true);
+            return;
+        }
+
+        try
+        {
+            habitat.AddAnimal(animal);
+            AnimalNameInput = string.Empty;
+            RefreshSnapshot(selectedAnimalId: animal.Id, selectedHabitatId: habitat.Id);
+            SetMessage($"{animal.Name} the {animal.Species} has been added to the zoo.", isError: false);
+        }
+        catch (Exception exception)
+        {
+            _simulation.SellAnimal(animal);
+            RefreshSnapshot();
+            SetMessage($"Animal could not be placed into a habitat: {exception.Message}", isError: true);
+        }
+    }
+
+    public void SellSelectedAnimal()
+    {
+        if (SelectedAnimalRow is null)
+        {
+            SetMessage("Select an animal to sell.", isError: true);
+            return;
+        }
+
+        var animalName = SelectedAnimalRow.Animal.Name;
+        if (_simulation.SellAnimal(SelectedAnimalRow.Animal))
+        {
+            RefreshSnapshot();
+            SetMessage($"{animalName} was sold.", isError: false);
+            return;
+        }
+
+        SetMessage($"The sale of {animalName} failed.", isError: true);
+    }
+
+    public void SellSelectedHabitat()
+    {
+        if (SelectedHabitatRow is null)
+        {
+            SetMessage("Select a habitat to sell.", isError: true);
+            return;
+        }
+
+        var habitat = SelectedHabitatRow.Habitat;
+        if (habitat.Animals.Count > 0)
+        {
+            SetMessage("Only empty habitats can be sold.", isError: true);
+            return;
+        }
+
+        if (_simulation.SellHabitat(habitat))
+        {
+            RefreshSnapshot();
+            SetMessage($"{habitat.Species} habitat sold.", isError: false);
+            return;
+        }
+
+        SetMessage($"The sale of the {habitat.Species} habitat failed.", isError: true);
+    }
+
+    private void RefreshSnapshot(Guid? selectedAnimalId = null, Guid? selectedHabitatId = null)
+    {
+        var animals = _simulation.Animals.OrderBy(a => a.Species).ThenBy(a => a.Name).ToList();
+        var habitats = _simulation.Habitats.OrderBy(h => h.Species).ThenByDescending(h => h.AvailableSlots).ToList();
+        var visibleAnimals = _simulation.GetAnimalsExposedToPublic();
+        var visibleCount = visibleAnimals.Count;
+        var projectedRevenueBySpecies = _simulation.CalculateVisitorRevenueBySpecies(_simulation.IsHighSeason);
+        var totalProjectedRevenue = projectedRevenueBySpecies.Values.Sum();
+
+        HeaderDate = $"Day {_simulation.CurrentDayOfMonth:00}/{_simulation.CurrentMonth:00}/Year {_simulation.CurrentYear} | Turn {_simulation.TurnNumber}";
+        SeasonLabel = _simulation.IsHighSeason ? "High season" : "Low season";
+        SeasonDetail = _simulation.IsHighSeason ? "May to September" : "October to April";
+
+        CashMetric = $"{_simulation.Cash:0.##} EUR";
+        CashCaption = $"Last balance recorded in {_simulation.Ledger.Transactions.Count} ledger entries.";
+        FoodMetric = $"{_simulation.MeatStockKg:0.##} kg meat | {_simulation.SeedsStockKg:0.##} kg seeds";
+        FoodCaption = "Food inventory available for the next feeding cycles.";
+        PopulationMetric = $"{animals.Count(a => a.IsAlive)} alive / {animals.Count} total";
+        PopulationCaption = $"{animals.Count(a => a.IsSick)} sick | {animals.Count(a => a.IsHungry)} hungry";
+        ExposureMetric = $"{visibleCount} on show";
+        ExposureCaption = $"{habitats.Sum(h => h.Animals.Count)}/{Math.Max(1, habitats.Sum(h => h.Capacity))} occupied slots across habitats";
+        RevenueMetric = $"{totalProjectedRevenue:0.##} EUR";
+        RevenueCaption = "Current estimate.";
+        UpdateWatchlist(animals, habitats, visibleCount);
+
+        SyncCollection(
+            AnimalRows,
+            animals.Select(animal => new AnimalRow(animal, FindHabitatLabel(animal, habitats))));
+
+        SyncCollection(
+            HabitatRows,
+            habitats.Select(habitat => new HabitatRow(habitat)));
+
+        SyncCollection(
+            EventRows,
+            _simulation.Events
+                .Reverse()
+                .Take(20)
+                .Select(zooEvent => new EventRow(zooEvent)));
+
+        SyncCollection(
+            ImportantEventRows,
+            _simulation.Events
+                .Where(IsImportantEvent)
+                .Reverse()
+                .Take(20)
+                .Select(zooEvent => new EventRow(zooEvent)));
+
+        SyncCollection(
+            LedgerRows,
+            _simulation.Ledger.Transactions
+                .Reverse()
+                .Take(12)
+                .Select(transaction => new LedgerRow(transaction)));
+
+        SyncCollection(
+            RevenueRows,
+            SpeciesOptions.Select(species =>
+                new RevenueRow(
+                    species,
+                    projectedRevenueBySpecies.GetValueOrDefault(species),
+                    visibleAnimals.Count(animal => animal.Species == species))));
+
+        SelectedAnimalRow = AnimalRows.FirstOrDefault(row =>
+            row.Animal.Id == (selectedAnimalId ?? SelectedAnimalRow?.Animal.Id));
+        SelectedHabitatRow = HabitatRows.FirstOrDefault(row =>
+            row.Habitat.Id == (selectedHabitatId ?? SelectedHabitatRow?.Habitat.Id));
+
+        UpdateSelectedAnimalDetails();
+        UpdateSelectedHabitatDetails();
+
+        RaisePropertyChanged(nameof(AnimalHeader));
+        RaisePropertyChanged(nameof(HabitatHeader));
+        RaisePropertyChanged(nameof(EventHeader));
+        RaisePropertyChanged(nameof(ImportantEventHeader));
+        RaisePropertyChanged(nameof(LedgerHeader));
+    }
+
+    private Habitat? SelectHabitatForSpecies(SpeciesType species)
+    {
+        return _simulation.Habitats
+            .Where(habitat => habitat.Species == species && habitat.AvailableSlots > 0)
+            .OrderByDescending(habitat => habitat.AvailableSlots)
+            .FirstOrDefault();
+    }
+
+    private void SetMessage(string message, bool isError)
+    {
+        StatusMessage = message;
+        MessageBackground = isError ? UiBrushes.MessageBadFill : UiBrushes.MessageGoodFill;
+        MessageBorderBrush = isError ? UiBrushes.MessageBadBorder : UiBrushes.MessageGoodBorder;
+    }
+
+    private void UpdateSelectedAnimalDetails()
+    {
+        if (SelectedAnimalRow is null)
+        {
+            SelectedAnimalTitle = "No animal selected";
+            SelectedAnimalSummary = "Select an animal.";
+            SelectedAnimalDetail = string.Empty;
+            return;
+        }
+
+        var animal = SelectedAnimalRow.Animal;
+        SelectedAnimalTitle = SelectedAnimalRow.Name;
+        SelectedAnimalSummary = $"{animal.Species} | {animal.Sex} | {SelectedAnimalRow.Status}";
+        SelectedAnimalDetail =
+            animal switch
+            {
+                _ when !animal.IsAlive =>
+                    $"Age {animal.AgeDays} days | {SelectedAnimalRow.HabitatLabel} | Dead",
+                _ when animal.IsGestating =>
+                    $"Age {animal.AgeDays} days | {SelectedAnimalRow.HabitatLabel} | Gestation {animal.GestationRemainingDays} day(s)",
+                _ when animal.EggIncubationRemainingDays > 0 =>
+                    $"Age {animal.AgeDays} days | {SelectedAnimalRow.HabitatLabel} | {animal.PendingEggs} egg(s), {animal.EggIncubationRemainingDays} day(s)",
+                _ =>
+                    $"Age {animal.AgeDays} days | {SelectedAnimalRow.HabitatLabel} | Hunger {animal.HungerDebtDays} day(s) | Disease {animal.DiseaseRemainingDays} day(s)"
+            };
+    }
+
+    private void UpdateSelectedHabitatDetails()
+    {
+        if (SelectedHabitatRow is null)
+        {
+            SelectedHabitatTitle = "No habitat selected";
+            SelectedHabitatSummary = "Select a habitat.";
+            SelectedHabitatDetail = string.Empty;
+            return;
+        }
+
+        var habitat = SelectedHabitatRow.Habitat;
+        SelectedHabitatTitle = $"{habitat.Species} habitat";
+        SelectedHabitatSummary = $"{habitat.Animals.Count}/{habitat.Capacity} occupied | Health {habitat.HealthRatio:P0}";
+        SelectedHabitatDetail =
+            $"Buy {habitat.BuyPrice:0.##} EUR | Sell {habitat.SellPrice:0.##} EUR | Loss probability {habitat.LossProbability:P0}";
+    }
+
+    private void UpdateWatchlist(IReadOnlyList<ZooAnimal> animals, IReadOnlyList<Habitat> habitats, int visibleCount)
+    {
+        var sickCount = animals.Count(animal => animal.IsSick);
+        var hungryCount = animals.Count(animal => animal.IsHungry);
+        var gestatingCount = animals.Count(animal => animal.IsGestating || animal.EggIncubationRemainingDays > 0);
+        var emptyHabitatCount = habitats.Count(habitat => habitat.Animals.Count == 0);
+
+        WatchlistTitle = sickCount + hungryCount + gestatingCount == 0
+            ? "No immediate operational alerts"
+            : $"{sickCount + hungryCount + gestatingCount} watch item(s) need attention";
+        WatchlistSummary =
+            $"{sickCount} sick | {hungryCount} hungry | {gestatingCount} hidden from visitors | {emptyHabitatCount} empty habitat(s)";
+    }
+
+    private static string FindHabitatLabel(ZooAnimal animal, IEnumerable<Habitat> habitats)
+    {
+        var habitat = habitats.FirstOrDefault(candidate => candidate.Animals.Contains(animal));
+        return habitat is null ? "No habitat" : $"{habitat.Species} habitat";
+    }
+
+    private static bool IsImportantEvent(Domain.Events.ZooEvent zooEvent)
+    {
+        return zooEvent.Type is
+            Domain.Events.ZooEventType.DiseaseDeath or
+            Domain.Events.ZooEventType.EndOfLife or
+            Domain.Events.ZooEventType.HabitatMonthlyLoss or
+            Domain.Events.ZooEventType.OverpopulationDeath or
+            Domain.Events.ZooEventType.Fire or
+            Domain.Events.ZooEventType.Theft or
+            Domain.Events.ZooEventType.InfantDeath;
+    }
+
+    private void SyncCollection<T>(ObservableCollection<T> target, IEnumerable<T> items)
+    {
+        target.Clear();
+        foreach (var item in items)
+            target.Add(item);
+    }
+
+    private bool TryReadPositiveInt(string rawValue, string label, out int value, bool allowZero = false)
+    {
+        if (!int.TryParse(rawValue, out value) || (allowZero ? value < 0 : value <= 0))
+        {
+            var minimum = allowZero ? "0" : "1";
+            SetMessage($"{label} must be a whole number greater than or equal to {minimum}.", isError: true);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryReadPositiveDecimal(string rawValue, string label, out decimal value)
+    {
+        var normalized = rawValue.Trim().Replace(',', '.');
+        if (!decimal.TryParse(normalized, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out value) ||
+            value <= 0m)
+        {
+            SetMessage($"{label} must be a positive number.", isError: true);
+            return false;
+        }
+
+        return true;
+    }
+}
