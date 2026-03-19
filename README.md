@@ -10,6 +10,14 @@ dotnet run
 
 The entry point starts the interactive console application in [Program.cs](./Program.cs).
 
+## Run the desktop UI
+
+```bash
+dotnet run --project Zoo.Desktop
+```
+
+The desktop dashboard is built with Avalonia and lives in [Zoo.Desktop](./Zoo.Desktop).
+
 ## Test
 
 ```bash
