@@ -20,7 +20,7 @@ public sealed class AnimalRow
     public string Name => Animal.Name;
     public string Secondary => $"{Animal.Species} | {Animal.Sex}";
     public string Detail =>
-        $"Age {Animal.AgeDays} days | Habitat {HabitatLabel} | Food {Animal.GetDailyFoodNeedKg():0.##} kg/day";
+        $"Age {Animal.AgeDays} days | {HabitatLabel} | Food {Animal.GetDailyFoodNeedKg():0.##} kg/day";
     public string Marker => Animal.IsAlive
         ? Animal.IsGestating
             ? "Gestating"
@@ -83,9 +83,18 @@ public sealed class EventRow
     public string Description => ZooEvent.Description;
     public IBrush AccentBrush => ZooEvent.Type switch
     {
-        ZooEventType.Fire or ZooEventType.Theft or ZooEventType.DiseaseDeath or ZooEventType.OverpopulationDeath => UiBrushes.Danger,
+        ZooEventType.Fire or
+        ZooEventType.Theft or
+        ZooEventType.DiseaseDeath or
+        ZooEventType.HungerDeath or
+        ZooEventType.HabitatAnimalsEuthanized or
+        ZooEventType.OverpopulationDeath => UiBrushes.Danger,
         ZooEventType.Pregnancy or ZooEventType.EggLaying or ZooEventType.Birth or ZooEventType.AnnualSubsidy => UiBrushes.Success,
-        ZooEventType.VisitorIncome or ZooEventType.FoodPurchased or ZooEventType.AnimalPurchased or ZooEventType.HabitatPurchased => UiBrushes.Info,
+        ZooEventType.VisitorIncome or
+        ZooEventType.FoodPurchased or
+        ZooEventType.AnimalPurchased or
+        ZooEventType.HabitatPurchased or
+        ZooEventType.HabitatAnimalsRehoused => UiBrushes.Info,
         _ => UiBrushes.Warning
     };
 

@@ -4,13 +4,16 @@ using Avalonia.Media;
 using Zoo.Application.Simulation;
 using Zoo.Domain.Animals;
 using Zoo.Domain.Feeding;
+using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
 
 namespace Zoo.Desktop;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
-    private readonly ZooSimulationService _simulation = new(cash: 80000m);
+    private readonly ZooSimulationService _simulation = new(cash: 80000m, interactiveHabitatEmergencies: true);
+    private readonly AnimalMarket _animalMarket = new();
+    private readonly FoodMarket _foodMarket = new();
 
     private string _advanceDaysInput = "7";
     private string _foodKgInput = "50";
@@ -51,7 +54,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public MainWindowViewModel()
     {
         RefreshSnapshot();
-        SetMessage("Desktop dashboard ready. The zoo starts with 80 000 EUR in cash.", isError: false);
+        SetMessage("Zoo ready. Initial budget: 80 000 EUR.", isError: false);
     }
 
     public IReadOnlyList<SpeciesType> SpeciesOptions { get; } = Enum.GetValues<SpeciesType>();
@@ -288,6 +291,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public string EventHeader => $"Recent events ({EventRows.Count})";
     public string ImportantEventHeader => $"Important events ({ImportantEventRows.Count})";
     public string LedgerHeader => $"Ledger ({LedgerRows.Count})";
+    public int EventCount => _simulation.Events.Count;
+    public PendingHabitatEmergency? PendingHabitatEmergency => _simulation.PendingHabitatEmergency;
 
     public void AdvanceTurns(int? overrideDays = null)
     {
@@ -295,14 +300,148 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
 
         var previousEventCount = _simulation.Events.Count;
+        var completedDays = 0;
 
-        for (var day = 0; day < days; day++)
-            _simulation.NextTurn();
+        for (; completedDays < days; completedDays++)
+        {
+            var state = _simulation.AdvanceTurnWithInterruptions();
+            if (state == TurnAdvanceState.AwaitingHabitatEmergencyDecision)
+            {
+                RefreshSnapshot();
+                SetMessage($"Simulation paused after {completedDays + 1} day(s). Resolve the habitat emergency to continue.", isError: true);
+                return;
+            }
+        }
 
         RefreshSnapshot();
 
         var newEvents = _simulation.Events.Count - previousEventCount;
-        SetMessage($"{days} day(s) simulated. {newEvents} new event(s) logged.", isError: false);
+        SetMessage($"{completedDays} day(s) simulated. {newEvents} new event(s) logged.", isError: false);
+    }
+
+    public bool TryGetAdvanceDays(int? overrideDays, out int days)
+    {
+        return TryReadPositiveInt(overrideDays?.ToString() ?? AdvanceDaysInput, "Advance days", out days);
+    }
+
+    public TurnAdvanceState AdvanceSingleTurn()
+    {
+        var state = _simulation.AdvanceTurnWithInterruptions();
+        RefreshSnapshot();
+
+        if (state == TurnAdvanceState.AwaitingHabitatEmergencyDecision)
+        {
+            SetMessage("Habitat emergency pending. Choose whether to rehouse or euthanize the animals.", isError: true);
+            return state;
+        }
+
+        return TurnAdvanceState.Completed;
+    }
+
+    public bool TryResolvePendingHabitatEmergency(HabitatEmergencyResolution resolution, out string failureReason)
+    {
+        var success = _simulation.TryResolvePendingHabitatEmergency(resolution, out failureReason);
+        RefreshSnapshot();
+
+        if (success)
+        {
+            var verb = resolution == HabitatEmergencyResolution.RehouseAnimals ? "rehoused" : "euthanized";
+            SetMessage($"Habitat emergency resolved. Animals were {verb}.", isError: false);
+            return true;
+        }
+
+        SetMessage(failureReason, isError: true);
+        return false;
+    }
+
+    public void ShowAdvanceSummary(int completedDays, int previousEventCount, bool paused)
+    {
+        var newEvents = _simulation.Events.Count - previousEventCount;
+        var message = paused
+            ? $"Simulation paused after {completedDays} day(s). {newEvents} new event(s) logged."
+            : $"{completedDays} day(s) simulated. {newEvents} new event(s) logged.";
+        SetMessage(message, isError: paused);
+    }
+
+    public void ShowStatus(string message, bool isError = false)
+    {
+        SetMessage(message, isError);
+    }
+
+    public string? GetBuyHabitatConfirmationMessage()
+    {
+        var habitat = HabitatFactory.Create(SelectedHabitatSpecies);
+        return $"Buy a {SelectedHabitatSpecies} habitat for {habitat.BuyPrice:0.##} EUR?";
+    }
+
+    public string? GetBuyFoodConfirmationMessage()
+    {
+        if (!TryReadPositiveDecimal(FoodKgInput, "Food quantity", out var kilograms))
+            return null;
+
+        var cost = _foodMarket.Buy(SelectedFoodType, kilograms);
+        var label = SelectedFoodType == FoodType.Meat ? "meat" : "seeds";
+        return $"Buy {kilograms:0.##} kg of {label} for {cost:0.##} EUR?";
+    }
+
+    public string? GetBuyAnimalConfirmationMessage()
+    {
+        var name = AnimalNameInput.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            SetMessage("Animal name is required.", isError: true);
+            return null;
+        }
+
+        if (!TryReadPositiveInt(AnimalAgeInput, "Animal age", out var ageDays, allowZero: true))
+            return null;
+
+        var cost = _animalMarket.BuyAnimalPrice(SelectedAnimalSpecies, SelectedAnimalSex, ageDays);
+        var hasHabitat = SelectHabitatForSpecies(SelectedAnimalSpecies) is not null;
+
+        if (hasHabitat)
+            return $"Buy {name} ({SelectedAnimalSpecies}, {SelectedAnimalSex}) for {cost:0.##} EUR?";
+
+        if (!AutoBuyHabitatForAnimal)
+        {
+            SetMessage($"No free {SelectedAnimalSpecies} habitat. Enable auto-buy or purchase one first.", isError: true);
+            return null;
+        }
+
+        var habitatCost = HabitatFactory.Create(SelectedAnimalSpecies).BuyPrice;
+        return
+            $"Buy {name} ({SelectedAnimalSpecies}, {SelectedAnimalSex}) for {cost:0.##} EUR and auto-buy one habitat for {habitatCost:0.##} EUR?";
+    }
+
+    public string? GetSellAnimalConfirmationMessage()
+    {
+        if (SelectedAnimalRow is null)
+        {
+            SetMessage("Select an animal to sell.", isError: true);
+            return null;
+        }
+
+        var animal = SelectedAnimalRow.Animal;
+        var revenue = _animalMarket.SellAnimalPrice(animal.Species, animal.Sex, animal.AgeDays);
+        return $"Sell {animal.Name} for {revenue:0.##} EUR?";
+    }
+
+    public string? GetSellHabitatConfirmationMessage()
+    {
+        if (SelectedHabitatRow is null)
+        {
+            SetMessage("Select a habitat to sell.", isError: true);
+            return null;
+        }
+
+        var habitat = SelectedHabitatRow.Habitat;
+        if (habitat.Animals.Count > 0)
+        {
+            SetMessage("Only empty habitats can be sold.", isError: true);
+            return null;
+        }
+
+        return $"Sell the {habitat.Species} habitat for {habitat.SellPrice:0.##} EUR?";
     }
 
     public void BuyHabitat()
@@ -595,7 +734,10 @@ public sealed class MainWindowViewModel : ObservableObject
         return zooEvent.Type is
             Domain.Events.ZooEventType.DiseaseDeath or
             Domain.Events.ZooEventType.EndOfLife or
+            Domain.Events.ZooEventType.HungerDeath or
             Domain.Events.ZooEventType.HabitatMonthlyLoss or
+            Domain.Events.ZooEventType.HabitatAnimalsEuthanized or
+            Domain.Events.ZooEventType.HabitatAnimalsRehoused or
             Domain.Events.ZooEventType.OverpopulationDeath or
             Domain.Events.ZooEventType.Fire or
             Domain.Events.ZooEventType.Theft or
