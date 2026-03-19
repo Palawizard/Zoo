@@ -290,8 +290,20 @@
                                          Text="{Binding AnimalNameInput, Mode=TwoWay}" />
                                 <ComboBox ItemsSource="{Binding SpeciesOptions}" SelectedItem="{Binding SelectedAnimalSpecies, Mode=TwoWay}" />
                                 <ComboBox ItemsSource="{Binding SexOptions}" SelectedItem="{Binding SelectedAnimalSex, Mode=TwoWay}" />
-                                <TextBox Watermark="Age in days"
-                                         Text="{Binding AnimalAgeInput, Mode=TwoWay}" />
+                                <WrapPanel>
+                                    <TextBox Width="104"
+                                             Margin="0,0,8,8"
+                                             Watermark="Years"
+                                             Text="{Binding AnimalAgeYearsInput, Mode=TwoWay}" />
+                                    <TextBox Width="104"
+                                             Margin="0,0,8,8"
+                                             Watermark="Months"
+                                             Text="{Binding AnimalAgeMonthsInput, Mode=TwoWay}" />
+                                    <TextBox Width="104"
+                                             Margin="0,0,0,8"
+                                             Watermark="Days"
+                                             Text="{Binding AnimalAgeDaysInput, Mode=TwoWay}" />
+                                </WrapPanel>
                                 <CheckBox IsChecked="{Binding AutoBuyHabitatForAnimal, Mode=TwoWay}">
                                     <TextBlock Text="Auto-buy habitat if needed" TextWrapping="Wrap" />
                                 </CheckBox>
@@ -305,7 +317,6 @@
                                 <TextBlock FontSize="20" FontWeight="SemiBold" Text="Buy habitat" />
                                 <ComboBox ItemsSource="{Binding SpeciesOptions}" SelectedItem="{Binding SelectedHabitatSpecies, Mode=TwoWay}" />
                                 <Button Classes="primary" Click="HandleBuyHabitat" Content="Buy habitat" />
-                                <Button Classes="danger" Click="HandleSellHabitat" Content="Sell selected habitat" />
                             </StackPanel>
                         </Border>
                     </WrapPanel>
@@ -352,6 +363,7 @@
                                                 </WrapPanel>
                                                 <TextBlock Classes="muted" Text="{Binding Secondary}" TextWrapping="Wrap" />
                                                 <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" />
+                                                <TextBlock Classes="muted" Text="{Binding ReproductionNote}" TextWrapping="Wrap" />
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="6">
@@ -376,10 +388,13 @@
                 <StackPanel Width="480" Spacing="18">
                     <Border Classes="panel">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                            <StackPanel>
-                                <TextBlock Classes="panelTitle" Text="{Binding HabitatHeader}" />
-                                <TextBlock Classes="muted" Text="Enclosures." />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel>
+                                    <TextBlock Classes="panelTitle" Text="{Binding HabitatHeader}" />
+                                    <TextBlock Classes="muted" Text="Enclosures." />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="danger" Click="HandleSellHabitat" Content="Sell selected habitat" />
+                            </Grid>
 
                             <ListBox Grid.Row="1"
                                      ItemsSource="{Binding HabitatRows}"

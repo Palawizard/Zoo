@@ -166,5 +166,26 @@ public partial class MainWindow : Window
         var newEvents = ViewModel.GetNewEventRows(previousEventCount);
         foreach (var eventRow in newEvents)
             await EventDialog.ShowAsync(this, eventRow);
+
+        await ShowPendingNewbornNamingDialogsAsync();
+    }
+
+    private async Task ShowPendingNewbornNamingDialogsAsync()
+    {
+        while (ViewModel.PendingNewbornAwaitingName is { } newborn)
+        {
+            var chosenName = await AnimalNamingDialog.ShowAsync(this, newborn);
+            if (!ViewModel.TryFinalizePendingNewbornNaming(chosenName, out var failureReason))
+            {
+                await ConfirmationDialog.ShowAsync(
+                    this,
+                    "Naming unavailable",
+                    failureReason,
+                    confirmLabel: "OK",
+                    cancelLabel: null,
+                    isDangerous: true);
+                return;
+            }
+        }
     }
 }

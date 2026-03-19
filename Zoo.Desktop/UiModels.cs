@@ -8,19 +8,21 @@ namespace Zoo.Desktop;
 
 public sealed class AnimalRow
 {
-    public AnimalRow(ZooAnimal animal, string habitatLabel)
+    public AnimalRow(ZooAnimal animal, string habitatLabel, string reproductionNote)
     {
         Animal = animal;
         HabitatLabel = habitatLabel;
+        ReproductionNote = reproductionNote;
     }
 
     public ZooAnimal Animal { get; }
     public string HabitatLabel { get; }
+    public string ReproductionNote { get; }
 
     public string Name => Animal.Name;
     public string Secondary => $"{Animal.Species} | {Animal.Sex}";
     public string Detail =>
-        $"Age {Animal.AgeDays} days | {HabitatLabel} | Food {Animal.GetDailyFoodNeedKg():0.##} kg/day";
+        $"Age {UiTextFormatter.FormatAge(Animal.AgeDays)} | {HabitatLabel} | Food {Animal.GetDailyFoodNeedKg():0.##} kg/day";
     public string Marker => Animal.IsAlive
         ? Animal.IsGestating
             ? "Gestating"
@@ -95,7 +97,12 @@ public sealed class EventRow
         ZooEventType.HungerDeath or
         ZooEventType.HabitatAnimalsEuthanized or
         ZooEventType.OverpopulationDeath => UiBrushes.Danger,
-        ZooEventType.Pregnancy or ZooEventType.EggLaying or ZooEventType.Birth or ZooEventType.AnnualSubsidy => UiBrushes.Success,
+        ZooEventType.Pests or
+        ZooEventType.SpoiledMeat or
+        ZooEventType.Disease or
+        ZooEventType.HabitatMonthlyLoss or
+        ZooEventType.InfantDeath => UiBrushes.Warning,
+        ZooEventType.Pregnancy or ZooEventType.EggLaying or ZooEventType.Birth or ZooEventType.AnnualSubsidy or ZooEventType.DiseaseRecovered => UiBrushes.Success,
         ZooEventType.VisitorIncome or
         ZooEventType.FoodPurchased or
         ZooEventType.AnimalPurchased or
@@ -161,7 +168,7 @@ public sealed class RevenueRow
 internal static class UiBrushes
 {
     public static readonly IBrush Success = Brush.Parse("#2EC4B6");
-    public static readonly IBrush Warning = Brush.Parse("#7CC6FE");
+    public static readonly IBrush Warning = Brush.Parse("#E6A44E");
     public static readonly IBrush Hungry = Brush.Parse("#D3BB63");
     public static readonly IBrush Danger = Brush.Parse("#FF6B6B");
     public static readonly IBrush Info = Brush.Parse("#5AA9FF");
@@ -170,4 +177,57 @@ internal static class UiBrushes
     public static readonly IBrush MessageGoodBorder = Brush.Parse("#235953");
     public static readonly IBrush MessageBadFill = Brush.Parse("#341B20");
     public static readonly IBrush MessageBadBorder = Brush.Parse("#6C3039");
+}
+
+internal static class UiTextFormatter
+{
+    public static string FormatAge(int ageDays)
+    {
+        if (ageDays <= 0)
+            return "0 days";
+
+        var years = ageDays / 365;
+        var remainingDaysAfterYears = ageDays % 365;
+        var months = remainingDaysAfterYears / 30;
+        var days = remainingDaysAfterYears % 30;
+
+        var parts = new List<string>(3);
+        if (years > 0)
+            parts.Add($"{years} year{(years == 1 ? string.Empty : "s")}");
+        if (months > 0)
+            parts.Add($"{months} month{(months == 1 ? string.Empty : "s")}");
+        if (days > 0 || parts.Count == 0)
+            parts.Add($"{days} day{(days == 1 ? string.Empty : "s")}");
+
+        return string.Join(", ", parts);
+    }
+
+    public static string DescribeReproduction(Animal animal)
+    {
+        if (!animal.IsAlive)
+            return "Reproduction unavailable";
+
+        var reasons = new List<string>();
+
+        if (!animal.HasReachedSexualMaturity())
+            reasons.Add("too young");
+        if (animal.HasReachedReproductionEnd())
+            reasons.Add("past reproduction age");
+        if (animal.IsHungry)
+            reasons.Add("hungry");
+        if (animal.IsSick)
+            reasons.Add("sick");
+        if (animal.IsBlockedFromReproductionByArrival())
+            reasons.Add("arrival cooldown");
+        if (animal.MonthsUntilNextLitter > 0)
+            reasons.Add($"{animal.MonthsUntilNextLitter} month cooldown");
+        if (animal.IsGestating)
+            reasons.Add("already gestating");
+        if (animal.EggIncubationRemainingDays > 0)
+            reasons.Add("incubating eggs");
+
+        return reasons.Count == 0
+            ? "Reproduction ready"
+            : $"Reproduction blocked: {string.Join(", ", reasons)}";
+    }
 }
