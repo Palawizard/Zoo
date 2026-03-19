@@ -103,4 +103,24 @@ public sealed class EconomyRulesTests
         Assert.Equal(10000m + expectedRevenue, simulation.Cash);
         Assert.Contains(simulation.Events, zooEvent => zooEvent.Type == Domain.Events.ZooEventType.AnimalSold);
     }
+
+    [Fact]
+    public void DeadAnimalsKeepHabitatSlotsUntilTheyAreSold()
+    {
+        var simulation = new ZooSimulationService(cash: 10000m);
+        Assert.True(simulation.BuyHabitat(SpeciesType.Tiger));
+
+        var habitat = Assert.Single(simulation.Habitats);
+        var tiger = new ZooAnimal("Khan", SexType.Male, SpeciesType.Tiger, ageDays: 365);
+        simulation.AddAnimal(tiger);
+        habitat.AddAnimal(tiger);
+        tiger.Kill();
+
+        Assert.Contains(tiger, habitat.Animals);
+        Assert.Equal(habitat.Capacity - 1, habitat.AvailableSlots);
+
+        Assert.True(simulation.SellAnimal(tiger));
+        Assert.DoesNotContain(tiger, habitat.Animals);
+        Assert.Equal(habitat.Capacity, habitat.AvailableSlots);
+    }
 }
