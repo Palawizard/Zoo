@@ -53,6 +53,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _statusMessage = string.Empty;
     private IBrush _messageBackground = UiBrushes.MessageGoodFill;
     private IBrush _messageBorderBrush = UiBrushes.MessageGoodBorder;
+    private bool _isRefreshingSnapshot;
 
     public MainWindowViewModel()
     {
@@ -153,7 +154,14 @@ public sealed class MainWindowViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _selectedHabitatRow, value))
+            {
                 UpdateSelectedHabitatDetails();
+                RaisePropertyChanged(nameof(AnimalHeader));
+                RaisePropertyChanged(nameof(AnimalPanelCaption));
+
+                if (!_isRefreshingSnapshot)
+                    RefreshAnimalRows(selectedAnimalId: SelectedAnimalRow?.Animal.Id);
+            }
         }
     }
 
@@ -301,7 +309,12 @@ public sealed class MainWindowViewModel : ObservableObject
         private set => SetProperty(ref _messageBorderBrush, value);
     }
 
-    public string AnimalHeader => $"Animals ({AnimalRows.Count})";
+    public string AnimalHeader => SelectedHabitatRow is null
+        ? "Animals (0)"
+        : $"Animals in {SelectedHabitatRow.Title} ({AnimalRows.Count})";
+    public string AnimalPanelCaption => SelectedHabitatRow is null
+        ? "Select a habitat to inspect its animals."
+        : "Showing animals from the selected habitat.";
     public string HabitatHeader => $"Habitats ({HabitatRows.Count})";
     public string EventHeader => $"Recent events ({EventRows.Count})";
     public string ImportantEventHeader => $"Important events ({ImportantEventRows.Count})";
@@ -651,17 +664,23 @@ public sealed class MainWindowViewModel : ObservableObject
         RevenueCaption = "Current estimate.";
         UpdateWatchlist(animals, habitats, visibleCount);
 
-        SyncCollection(
-            AnimalRows,
-            animals.Select(animal =>
-                new AnimalRow(
-                    animal,
-                    FindHabitatLabel(animal, habitats),
-                    DescribeReproductionStatus(animal, habitats))));
+        _isRefreshingSnapshot = true;
+        try
+        {
+            SyncCollection(
+                HabitatRows,
+                habitats.Select(habitat => new HabitatRow(habitat)));
 
-        SyncCollection(
-            HabitatRows,
-            habitats.Select(habitat => new HabitatRow(habitat)));
+            var targetHabitatId = selectedHabitatId ?? SelectedHabitatRow?.Habitat.Id;
+            SelectedHabitatRow = HabitatRows.FirstOrDefault(row => row.Habitat.Id == targetHabitatId)
+                ?? HabitatRows.FirstOrDefault();
+
+            RefreshAnimalRows(animals, habitats, selectedAnimalId);
+        }
+        finally
+        {
+            _isRefreshingSnapshot = false;
+        }
 
         SyncCollection(
             EventRows,
@@ -692,19 +711,42 @@ public sealed class MainWindowViewModel : ObservableObject
                     projectedRevenueBySpecies.GetValueOrDefault(species),
                     visibleAnimals.Count(animal => animal.Species == species))));
 
-        SelectedAnimalRow = AnimalRows.FirstOrDefault(row =>
-            row.Animal.Id == (selectedAnimalId ?? SelectedAnimalRow?.Animal.Id));
-        SelectedHabitatRow = HabitatRows.FirstOrDefault(row =>
-            row.Habitat.Id == (selectedHabitatId ?? SelectedHabitatRow?.Habitat.Id));
-
         UpdateSelectedAnimalDetails();
         UpdateSelectedHabitatDetails();
 
         RaisePropertyChanged(nameof(AnimalHeader));
+        RaisePropertyChanged(nameof(AnimalPanelCaption));
         RaisePropertyChanged(nameof(HabitatHeader));
         RaisePropertyChanged(nameof(EventHeader));
         RaisePropertyChanged(nameof(ImportantEventHeader));
         RaisePropertyChanged(nameof(LedgerHeader));
+    }
+
+    private void RefreshAnimalRows(
+        IReadOnlyList<ZooAnimal>? orderedAnimals = null,
+        IReadOnlyList<Habitat>? habitats = null,
+        Guid? selectedAnimalId = null)
+    {
+        orderedAnimals ??= _simulation.Animals.OrderBy(animal => animal.Species).ThenBy(animal => animal.Name).ToList();
+        habitats ??= _simulation.Habitats.OrderBy(habitat => habitat.Species).ThenByDescending(habitat => habitat.AvailableSlots).ToList();
+
+        IEnumerable<ZooAnimal> animalsInSelectedHabitat = SelectedHabitatRow is null
+            ? Enumerable.Empty<ZooAnimal>()
+            : orderedAnimals.Where(animal => SelectedHabitatRow.Habitat.Animals.Contains(animal));
+
+        SyncCollection(
+            AnimalRows,
+            animalsInSelectedHabitat.Select(animal =>
+                new AnimalRow(
+                    animal,
+                    FindHabitatLabel(animal, habitats),
+                    DescribeReproductionStatus(animal, habitats))));
+
+        SelectedAnimalRow = AnimalRows.FirstOrDefault(row =>
+            row.Animal.Id == (selectedAnimalId ?? SelectedAnimalRow?.Animal.Id));
+
+        RaisePropertyChanged(nameof(AnimalHeader));
+        RaisePropertyChanged(nameof(AnimalPanelCaption));
     }
 
     private Habitat? SelectHabitatForSpecies(SpeciesType species)
