@@ -53,6 +53,8 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _statusMessage = string.Empty;
     private IBrush _messageBackground = UiBrushes.MessageGoodFill;
     private IBrush _messageBorderBrush = UiBrushes.MessageGoodBorder;
+    private bool _isRefreshingSnapshot;
+    private string? _pendingCashPopupMessage;
 
     public MainWindowViewModel()
     {
@@ -153,7 +155,14 @@ public sealed class MainWindowViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _selectedHabitatRow, value))
+            {
                 UpdateSelectedHabitatDetails();
+                RaisePropertyChanged(nameof(AnimalHeader));
+                RaisePropertyChanged(nameof(AnimalPanelCaption));
+
+                if (!_isRefreshingSnapshot)
+                    RefreshAnimalRows(selectedAnimalId: SelectedAnimalRow?.Animal.Id);
+            }
         }
     }
 
@@ -301,7 +310,12 @@ public sealed class MainWindowViewModel : ObservableObject
         private set => SetProperty(ref _messageBorderBrush, value);
     }
 
-    public string AnimalHeader => $"Animals ({AnimalRows.Count})";
+    public string AnimalHeader => SelectedHabitatRow is null
+        ? "Animals (0)"
+        : $"Animals in {SelectedHabitatRow.Title} ({AnimalRows.Count})";
+    public string AnimalPanelCaption => SelectedHabitatRow is null
+        ? "Select a habitat to inspect its animals."
+        : "Showing animals from the selected habitat.";
     public string HabitatHeader => $"Habitats ({HabitatRows.Count})";
     public string EventHeader => $"Recent events ({EventRows.Count})";
     public string ImportantEventHeader => $"Important events ({ImportantEventRows.Count})";
@@ -413,6 +427,13 @@ public sealed class MainWindowViewModel : ObservableObject
     public string? GetBuyHabitatConfirmationMessage()
     {
         var habitat = HabitatFactory.Create(SelectedHabitatSpecies);
+
+        if (_simulation.Cash < habitat.BuyPrice)
+        {
+            SetCashError($"Not enough cash to buy a {SelectedHabitatSpecies} habitat.");
+            return null;
+        }
+
         return $"Buy a {SelectedHabitatSpecies} habitat for {habitat.BuyPrice:0.##} EUR?";
     }
 
@@ -423,6 +444,13 @@ public sealed class MainWindowViewModel : ObservableObject
 
         var cost = _foodMarket.Buy(SelectedFoodType, kilograms);
         var label = SelectedFoodType == FoodType.Meat ? "meat" : "seeds";
+
+        if (_simulation.Cash < cost)
+        {
+            SetCashError("Food purchase denied because the zoo does not have enough cash.");
+            return null;
+        }
+
         return $"Buy {kilograms:0.##} kg of {label} for {cost:0.##} EUR?";
     }
 
@@ -443,7 +471,15 @@ public sealed class MainWindowViewModel : ObservableObject
         var ageLabel = UiTextFormatter.FormatAge(ageDays);
 
         if (hasHabitat)
+        {
+            if (_simulation.Cash < cost)
+            {
+                SetCashError($"Not enough cash to buy {name}.");
+                return null;
+            }
+
             return $"Buy {name} ({SelectedAnimalSpecies}, {SelectedAnimalSex}, {ageLabel}) for {cost:0.##} EUR?";
+        }
 
         if (!AutoBuyHabitatForAnimal)
         {
@@ -452,6 +488,13 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         var habitatCost = HabitatFactory.Create(SelectedAnimalSpecies).BuyPrice;
+
+        if (_simulation.Cash < cost + habitatCost)
+        {
+            SetCashError($"Not enough cash to buy {name} and a {SelectedAnimalSpecies} habitat.");
+            return null;
+        }
+
         return
             $"Buy {name} ({SelectedAnimalSpecies}, {SelectedAnimalSex}, {ageLabel}) for {cost:0.##} EUR and auto-buy one habitat for {habitatCost:0.##} EUR?";
     }
@@ -492,6 +535,13 @@ public sealed class MainWindowViewModel : ObservableObject
     public void BuyHabitat()
     {
         var selectedAnimalId = SelectedAnimalRow?.Animal.Id;
+        var habitat = HabitatFactory.Create(SelectedHabitatSpecies);
+
+        if (_simulation.Cash < habitat.BuyPrice)
+        {
+            SetCashError($"Not enough cash to buy a {SelectedHabitatSpecies} habitat.");
+            return;
+        }
 
         if (_simulation.BuyHabitat(SelectedHabitatSpecies))
         {
@@ -502,13 +552,20 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
-        SetMessage($"Not enough cash to buy a {SelectedHabitatSpecies} habitat.", isError: true);
+        SetCashError($"Not enough cash to buy a {SelectedHabitatSpecies} habitat.");
     }
 
     public void BuyFood()
     {
         if (!TryReadPositiveDecimal(FoodKgInput, "Food quantity", out var kilograms))
             return;
+
+        var cost = _foodMarket.Buy(SelectedFoodType, kilograms);
+        if (_simulation.Cash < cost)
+        {
+            SetCashError("Food purchase denied because the zoo does not have enough cash.");
+            return;
+        }
 
         if (_simulation.BuyFood(SelectedFoodType, kilograms))
         {
@@ -517,7 +574,7 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
-        SetMessage("Food purchase denied because the zoo does not have enough cash.", isError: true);
+        SetCashError("Food purchase denied because the zoo does not have enough cash.");
     }
 
     public void BuyAnimal()
@@ -532,6 +589,7 @@ public sealed class MainWindowViewModel : ObservableObject
         if (!TryReadAnimalAge(out var ageDays))
             return;
 
+        var animalCost = _animalMarket.BuyAnimalPrice(SelectedAnimalSpecies, SelectedAnimalSex, ageDays);
         var habitat = SelectHabitatForSpecies(SelectedAnimalSpecies);
         if (habitat is null)
         {
@@ -541,9 +599,16 @@ public sealed class MainWindowViewModel : ObservableObject
                 return;
             }
 
+            var habitatCost = HabitatFactory.Create(SelectedAnimalSpecies).BuyPrice;
+            if (_simulation.Cash < animalCost + habitatCost)
+            {
+                SetCashError($"Not enough cash to buy {name} and a {SelectedAnimalSpecies} habitat.");
+                return;
+            }
+
             if (!_simulation.BuyHabitat(SelectedAnimalSpecies))
             {
-                SetMessage($"No free {SelectedAnimalSpecies} habitat and not enough cash to auto-buy one.", isError: true);
+                SetCashError($"No free {SelectedAnimalSpecies} habitat and not enough cash to auto-buy one.");
                 return;
             }
 
@@ -554,11 +619,16 @@ public sealed class MainWindowViewModel : ObservableObject
                 return;
             }
         }
+        else if (_simulation.Cash < animalCost)
+        {
+            SetCashError($"Not enough cash to buy {name}.");
+            return;
+        }
 
         var animal = new ZooAnimal(name, SelectedAnimalSex, SelectedAnimalSpecies, ageDays);
         if (!_simulation.BuyAnimal(animal))
         {
-            SetMessage("Animal purchase denied because the zoo does not have enough cash.", isError: true);
+            SetCashError($"Not enough cash to buy {name}.");
             return;
         }
 
@@ -651,17 +721,23 @@ public sealed class MainWindowViewModel : ObservableObject
         RevenueCaption = "Current estimate.";
         UpdateWatchlist(animals, habitats, visibleCount);
 
-        SyncCollection(
-            AnimalRows,
-            animals.Select(animal =>
-                new AnimalRow(
-                    animal,
-                    FindHabitatLabel(animal, habitats),
-                    DescribeReproductionStatus(animal, habitats))));
+        _isRefreshingSnapshot = true;
+        try
+        {
+            SyncCollection(
+                HabitatRows,
+                habitats.Select(habitat => new HabitatRow(habitat)));
 
-        SyncCollection(
-            HabitatRows,
-            habitats.Select(habitat => new HabitatRow(habitat)));
+            var targetHabitatId = selectedHabitatId ?? SelectedHabitatRow?.Habitat.Id;
+            SelectedHabitatRow = HabitatRows.FirstOrDefault(row => row.Habitat.Id == targetHabitatId)
+                ?? HabitatRows.FirstOrDefault();
+
+            RefreshAnimalRows(animals, habitats, selectedAnimalId);
+        }
+        finally
+        {
+            _isRefreshingSnapshot = false;
+        }
 
         SyncCollection(
             EventRows,
@@ -692,19 +768,42 @@ public sealed class MainWindowViewModel : ObservableObject
                     projectedRevenueBySpecies.GetValueOrDefault(species),
                     visibleAnimals.Count(animal => animal.Species == species))));
 
-        SelectedAnimalRow = AnimalRows.FirstOrDefault(row =>
-            row.Animal.Id == (selectedAnimalId ?? SelectedAnimalRow?.Animal.Id));
-        SelectedHabitatRow = HabitatRows.FirstOrDefault(row =>
-            row.Habitat.Id == (selectedHabitatId ?? SelectedHabitatRow?.Habitat.Id));
-
         UpdateSelectedAnimalDetails();
         UpdateSelectedHabitatDetails();
 
         RaisePropertyChanged(nameof(AnimalHeader));
+        RaisePropertyChanged(nameof(AnimalPanelCaption));
         RaisePropertyChanged(nameof(HabitatHeader));
         RaisePropertyChanged(nameof(EventHeader));
         RaisePropertyChanged(nameof(ImportantEventHeader));
         RaisePropertyChanged(nameof(LedgerHeader));
+    }
+
+    private void RefreshAnimalRows(
+        IReadOnlyList<ZooAnimal>? orderedAnimals = null,
+        IReadOnlyList<Habitat>? habitats = null,
+        Guid? selectedAnimalId = null)
+    {
+        orderedAnimals ??= _simulation.Animals.OrderBy(animal => animal.Species).ThenBy(animal => animal.Name).ToList();
+        habitats ??= _simulation.Habitats.OrderBy(habitat => habitat.Species).ThenByDescending(habitat => habitat.AvailableSlots).ToList();
+
+        IEnumerable<ZooAnimal> animalsInSelectedHabitat = SelectedHabitatRow is null
+            ? Enumerable.Empty<ZooAnimal>()
+            : orderedAnimals.Where(animal => SelectedHabitatRow.Habitat.Animals.Contains(animal));
+
+        SyncCollection(
+            AnimalRows,
+            animalsInSelectedHabitat.Select(animal =>
+                new AnimalRow(
+                    animal,
+                    FindHabitatLabel(animal, habitats),
+                    DescribeReproductionStatus(animal, habitats))));
+
+        SelectedAnimalRow = AnimalRows.FirstOrDefault(row =>
+            row.Animal.Id == (selectedAnimalId ?? SelectedAnimalRow?.Animal.Id));
+
+        RaisePropertyChanged(nameof(AnimalHeader));
+        RaisePropertyChanged(nameof(AnimalPanelCaption));
     }
 
     private Habitat? SelectHabitatForSpecies(SpeciesType species)
@@ -720,6 +819,28 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = message;
         MessageBackground = isError ? UiBrushes.MessageBadFill : UiBrushes.MessageGoodFill;
         MessageBorderBrush = isError ? UiBrushes.MessageBadBorder : UiBrushes.MessageGoodBorder;
+        _pendingCashPopupMessage = null;
+    }
+
+    private void SetCashError(string message)
+    {
+        StatusMessage = message;
+        MessageBackground = UiBrushes.MessageBadFill;
+        MessageBorderBrush = UiBrushes.MessageBadBorder;
+        _pendingCashPopupMessage = message;
+    }
+
+    public bool TryTakePendingCashPopupMessage(out string message)
+    {
+        if (string.IsNullOrWhiteSpace(_pendingCashPopupMessage))
+        {
+            message = string.Empty;
+            return false;
+        }
+
+        message = _pendingCashPopupMessage;
+        _pendingCashPopupMessage = null;
+        return true;
     }
 
     private void UpdateSelectedAnimalDetails()

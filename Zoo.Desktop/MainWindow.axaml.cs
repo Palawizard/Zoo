@@ -35,13 +35,17 @@ public partial class MainWindow : Window
     {
         var confirmation = ViewModel.GetBuyHabitatConfirmationMessage();
         if (confirmation is null)
+        {
+            await ShowPendingCashPopupAsync();
             return;
+        }
 
         var previousEventCount = ViewModel.EventCount;
         if (await ConfirmationDialog.ShowAsync(this, "Buy habitat", confirmation, confirmLabel: "Buy"))
         {
             ViewModel.BuyHabitat();
             await ShowNewEventDialogsAsync(previousEventCount);
+            await ShowPendingCashPopupAsync();
         }
     }
 
@@ -49,13 +53,17 @@ public partial class MainWindow : Window
     {
         var confirmation = ViewModel.GetBuyFoodConfirmationMessage();
         if (confirmation is null)
+        {
+            await ShowPendingCashPopupAsync();
             return;
+        }
 
         var previousEventCount = ViewModel.EventCount;
         if (await ConfirmationDialog.ShowAsync(this, "Buy food", confirmation, confirmLabel: "Buy"))
         {
             ViewModel.BuyFood();
             await ShowNewEventDialogsAsync(previousEventCount);
+            await ShowPendingCashPopupAsync();
         }
     }
 
@@ -63,13 +71,17 @@ public partial class MainWindow : Window
     {
         var confirmation = ViewModel.GetBuyAnimalConfirmationMessage();
         if (confirmation is null)
+        {
+            await ShowPendingCashPopupAsync();
             return;
+        }
 
         var previousEventCount = ViewModel.EventCount;
         if (await ConfirmationDialog.ShowAsync(this, "Buy animal", confirmation, confirmLabel: "Buy"))
         {
             ViewModel.BuyAnimal();
             await ShowNewEventDialogsAsync(previousEventCount);
+            await ShowPendingCashPopupAsync();
         }
     }
 
@@ -187,5 +199,19 @@ public partial class MainWindow : Window
                 return;
             }
         }
+    }
+
+    private async Task ShowPendingCashPopupAsync()
+    {
+        if (!ViewModel.TryTakePendingCashPopupMessage(out var message))
+            return;
+
+        await ConfirmationDialog.ShowAsync(
+            this,
+            "Not enough cash",
+            message,
+            confirmLabel: "OK",
+            cancelLabel: null,
+            isDangerous: true);
     }
 }
