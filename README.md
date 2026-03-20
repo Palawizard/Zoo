@@ -122,6 +122,14 @@ Le code suit une hiérarchie conventionnelle en C# :
 - une responsabilité principale par classe
 - en pratique, une classe par fichier pour garder une structure lisible et facile à maintenir
 
+Pour `Zoo.Desktop`, la partie interface suit une organisation plus conventionnelle de type MVVM :
+
+- `Views` pour les écrans Avalonia et leur code-behind
+- `ViewModels` pour la logique de présentation
+- `Dialogs` pour les fenêtres modales
+- `Models` pour les modèles d'affichage
+- `Infrastructure`, `Styling` et `Utilities` pour les briques transverses UI
+
 ### Points d'entrée
 - `Program.cs` démarre l'application console
 - `Zoo.Desktop/Program.cs` démarre le dashboard Avalonia
@@ -153,12 +161,20 @@ Le code suit une hiérarchie conventionnelle en C# :
 │       ├── ConsoleInput.cs             # Lecture et validation des saisies
 │       └── MenuOption.cs
 ├── Zoo.Desktop/
-│   ├── MainWindow.axaml                # Dashboard principal
-│   ├── MainWindowViewModel.cs          # Logique UI + synchronisation avec le moteur
-│   ├── AnimalNamingDialog.cs           # Renommage des nouveau-nés
-│   ├── HabitatEmergencyDialog.cs       # Décision de relogement / euthanasie
-│   ├── EventDialog.cs                  # Popups d'événements
-│   └── ConfirmationDialog.cs           # Confirmations d'actions
+│   ├── Views/
+│   │   ├── MainWindow.axaml            # Dashboard principal
+│   │   └── MainWindow.axaml.cs         # Code-behind Avalonia
+│   ├── ViewModels/
+│   │   └── MainWindowViewModel.cs      # Logique UI + synchronisation avec le moteur
+│   ├── Dialogs/
+│   │   ├── AnimalNamingDialog.cs       # Renommage des nouveau-nés
+│   │   ├── HabitatEmergencyDialog.cs   # Décision de relogement / euthanasie
+│   │   ├── EventDialog.cs              # Popups d'événements
+│   │   └── ConfirmationDialog.cs       # Confirmations d'actions
+│   ├── Models/                         # Modèles de lignes et données d'affichage
+│   ├── Infrastructure/                 # Base MVVM (`ObservableObject`)
+│   ├── Styling/                        # Brushes et constantes visuelles
+│   └── Utilities/                      # Helpers UI
 └── Tests/
     └── Zoo.Tests/
         ├── Unit/                       # Tests unitaires métier

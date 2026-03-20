@@ -1,8 +1,11 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml;
 using Zoo.Application.Simulation;
+using Zoo.Desktop.Dialogs;
+using Zoo.Desktop.ViewModels;
 
-namespace Zoo.Desktop;
+namespace Zoo.Desktop.Views;
 
 public partial class MainWindow : Window
 {
@@ -10,6 +13,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = new MainWindowViewModel();
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 
     private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;

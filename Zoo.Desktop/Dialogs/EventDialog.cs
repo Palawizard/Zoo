@@ -2,8 +2,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Zoo.Desktop.Models;
 
-namespace Zoo.Desktop;
+namespace Zoo.Desktop.Dialogs;
 
 public sealed class EventDialog : Window
 {

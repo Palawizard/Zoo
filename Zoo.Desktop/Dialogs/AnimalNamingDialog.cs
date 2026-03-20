@@ -4,7 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Zoo.Domain.Animals;
 
-namespace Zoo.Desktop;
+namespace Zoo.Desktop.Dialogs;
 
 public sealed class AnimalNamingDialog : Window
 {

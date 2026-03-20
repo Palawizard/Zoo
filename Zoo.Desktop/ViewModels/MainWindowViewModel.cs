@@ -2,13 +2,17 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Media;
 using Zoo.Application.Simulation;
+using Zoo.Desktop.Infrastructure;
+using Zoo.Desktop.Models;
+using Zoo.Desktop.Styling;
+using Zoo.Desktop.Utilities;
 using Zoo.Domain.Animals;
 using Zoo.Domain.Events;
 using Zoo.Domain.Feeding;
 using Zoo.Domain.Finance;
 using Zoo.Domain.Habitats;
 
-namespace Zoo.Desktop;
+namespace Zoo.Desktop.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {

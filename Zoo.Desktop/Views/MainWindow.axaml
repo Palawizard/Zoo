@@ -2,13 +2,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="using:Zoo.Desktop"
+        xmlns:viewModels="using:Zoo.Desktop.ViewModels"
+        xmlns:models="using:Zoo.Desktop.Models"
         mc:Ignorable="d"
-        d:DataContext="{d:DesignInstance Type=local:MainWindowViewModel, IsDesignTimeCreatable=True}"
+        d:DataContext="{d:DesignInstance Type=viewModels:MainWindowViewModel, IsDesignTimeCreatable=True}"
         d:DesignWidth="1400"
         d:DesignHeight="920"
-        x:Class="Zoo.Desktop.MainWindow"
-        x:DataType="local:MainWindowViewModel"
+        x:Class="Zoo.Desktop.Views.MainWindow"
+        x:DataType="viewModels:MainWindowViewModel"
         Title="Zoo Manager"
         Width="1400"
         Height="920"
@@ -162,7 +163,7 @@
                             <ScrollViewer MaxHeight="340">
                                 <ItemsControl ItemsSource="{Binding EventRows}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:EventRow">
+                                        <DataTemplate x:DataType="models:EventRow">
                                             <Border Classes="listCard" Margin="0,0,0,10">
                                                 <StackPanel Spacing="6">
                                                     <WrapPanel>
@@ -197,7 +198,7 @@
                             <ScrollViewer MaxHeight="340">
                                 <ItemsControl ItemsSource="{Binding ImportantEventRows}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:EventRow">
+                                        <DataTemplate x:DataType="models:EventRow">
                                             <Border Classes="listCard" Margin="0,0,0,10">
                                                 <StackPanel Spacing="6">
                                                     <WrapPanel>
@@ -232,7 +233,7 @@
                             <ScrollViewer MaxHeight="340">
                                 <ItemsControl ItemsSource="{Binding LedgerRows}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:LedgerRow">
+                                        <DataTemplate x:DataType="models:LedgerRow">
                                             <Border Classes="listCard" Margin="0,0,0,10">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                                     <StackPanel Spacing="4" MinWidth="0">
@@ -341,7 +342,7 @@
                                  BorderThickness="0"
                                  MaxHeight="520">
                             <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="local:AnimalRow">
+                                <DataTemplate x:DataType="models:AnimalRow">
                                     <Border Classes="listCard" Margin="0,0,0,10">
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
                                             <StackPanel Spacing="4" MinWidth="0">
@@ -403,7 +404,7 @@
                                      BorderThickness="0"
                                      MaxHeight="260">
                                 <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="local:HabitatRow">
+                                    <DataTemplate x:DataType="models:HabitatRow">
                                         <Border Classes="listCard" Margin="0,0,0,10">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
                                                 <StackPanel Spacing="4" MinWidth="0">
@@ -463,7 +464,7 @@
 
                             <ItemsControl ItemsSource="{Binding RevenueRows}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="local:RevenueRow">
+                                    <DataTemplate x:DataType="models:RevenueRow">
                                         <Border Classes="listCard" Margin="0,0,0,10">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                                 <StackPanel Spacing="3" MinWidth="0">

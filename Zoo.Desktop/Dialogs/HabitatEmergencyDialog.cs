@@ -4,7 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Zoo.Application.Simulation;
 
-namespace Zoo.Desktop;
+namespace Zoo.Desktop.Dialogs;
 
 public sealed class HabitatEmergencyDialog : Window
 {

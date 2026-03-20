@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 
-namespace Zoo.Desktop;
+namespace Zoo.Desktop.Dialogs;
 
 public sealed class ConfirmationDialog : Window
 {
