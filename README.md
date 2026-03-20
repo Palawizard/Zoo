@@ -116,6 +116,12 @@ Pourquoi cette stack ?
 
 Le projet est organisé autour d'un moteur de simulation central (`ZooSimulationService`) qui pilote les animaux, habitats, finances, visiteurs, événements et règles mensuelles / annuelles.
 
+Le code suit une hiérarchie conventionnelle en C# :
+
+- séparation claire par couches (`Domain`, `Application`, `Presentation`)
+- une responsabilité principale par classe
+- en pratique, une classe par fichier pour garder une structure lisible et facile à maintenir
+
 ### Points d'entrée
 - `Program.cs` démarre l'application console
 - `Zoo.Desktop/Program.cs` démarre le dashboard Avalonia
