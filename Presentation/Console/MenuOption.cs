@@ -1,5 +1,8 @@
 namespace Zoo.Presentation.ConsoleApp;
 
+/// <summary>
+/// Lists the console menu actions
+/// </summary>
 public enum MenuOption
 {
     Quit = 0,

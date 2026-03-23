@@ -4,6 +4,9 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Domain.Visitors;
 
+/// <summary>
+/// Calculates projected revenue from the animals exposed to visitors
+/// </summary>
 public sealed class VisitorRevenueCalculator
 {
     private readonly VisitorPricing _pricing = new();
@@ -15,10 +18,14 @@ public sealed class VisitorRevenueCalculator
         _random = random ?? Random.Shared;
     }
 
+    /// <summary>
+    /// Calculates projected revenue by species
+    /// </summary>
     public IReadOnlyDictionary<SpeciesType, decimal> CalculateBySpecies(
         IEnumerable<ZooAnimal> exposedAnimals,
         bool isHighSeason)
     {
+        // Revenue is grouped by species because the UI shows one row per species
         return exposedAnimals
             .GroupBy(a => a.Species)
             .ToDictionary(

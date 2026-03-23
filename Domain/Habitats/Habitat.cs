@@ -5,54 +5,86 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Domain.Habitats;
 
-///Habitat
+/// <summary>
+/// Represents a habitat that can host animals of one species
+/// </summary>
 public class Habitat
 {
-    /// id unique de l'habitat.
+    /// <summary>
+    /// Unique identifier of the habitat
+    /// </summary>
     public Guid Id { get; } = Guid.NewGuid();
 
-    /// Profil de l'habitat
+    /// <summary>
+    /// Fixed profile used to configure this habitat
+    /// </summary>
     public HabitatProfile Profile { get; }
 
-    /// Espèce supportée par habitat.
+    /// <summary>
+    /// Species accepted by this habitat
+    /// </summary>
     public SpeciesType Species { get; }
 
-    /// Prix d'achat
+    /// <summary>
+    /// Purchase price of the habitat
+    /// </summary>
     public decimal BuyPrice { get; }
 
-    /// Prix de revente
+    /// <summary>
+    /// Resale price of the habitat
+    /// </summary>
     public decimal SellPrice { get; }
 
-    /// Capacité maximale
+    /// <summary>
+    /// Maximum number of animals supported by the habitat
+    /// </summary>
     public int Capacity { get; }
 
-    /// Nombre d'animaux  pouvant etre perdu
+    /// <summary>
+    /// Maximum number of monthly overpopulation losses to evaluate
+    /// </summary>
     public int MonthlyLossCount { get; }
 
-    /// Probabilité de perte par event
+    /// <summary>
+    /// Base probability used for habitat monthly sickness rolls
+    /// </summary>
     public decimal LossProbability { get; }
 
-    /// Collection des animaux
+    /// <summary>
+    /// Animals currently living in the habitat
+    /// </summary>
     public List<Animal> Animals { get; }
 
-    /// Nombre de places dispo
+    /// <summary>
+    /// Free slots left in the habitat
+    /// </summary>
     public int AvailableSlots => Capacity - Animals.Count;
 
-    /// habitat plein
+    /// <summary>
+    /// Returns whether the habitat is full
+    /// </summary>
     public bool IsFull => Animals.Count >= Capacity;
 
-    /// habiat vide
+    /// <summary>
+    /// Returns whether the habitat is empty
+    /// </summary>
     public bool IsEmpty => Animals.Count == 0;
 
-    /// animaux en bonen santé
+    /// <summary>
+    /// Ratio of healthy animals currently in the habitat
+    /// </summary>
     public decimal HealthRatio =>
         Animals.Count == 0 ? 1m
         : (decimal)Animals.Count(a => a.Health == HealthStatus.Healthy) / Animals.Count;
 
-    /// check si reproduction est possible
+    /// <summary>
+    /// Returns whether the habitat has enough animals and space for reproduction
+    /// </summary>
     public bool CanReproduce() => Animals.Count >= 2 && AvailableSlots >= 1;
 
-    /// Constructeur protégé : initialise l'habitat
+    /// <summary>
+    /// Creates a habitat for one species
+    /// </summary>
     protected Habitat(SpeciesType species)
     {
         Profile = HabitatProfileCatalog.Get(species);
@@ -65,7 +97,9 @@ public class Habitat
         Animals = new List<Animal>();
     }
 
-    /// Ajoute un animal à l'habitat
+    /// <summary>
+    /// Adds an animal to the habitat
+    /// </summary>
     public void AddAnimal(Animal animal)
     {
         if (animal.Species != Species)
@@ -79,27 +113,39 @@ public class Habitat
         Animals.Add(animal);
     }
 
-    /// Retire un animal
+    /// <summary>
+    /// Removes an animal from the habitat
+    /// </summary>
     public void RemoveAnimal(Animal animal)
     {
         Animals.Remove(animal);
     }
 
-    /// Simule les événements mensuels : pertes naturelles puis surpopulation.
+    /// <summary>
+    /// Processes the monthly habitat effects
+    /// </summary>
     public HabitatMonthlyOutcome ProcessMonth(Random random)
     {
         var newlySickAnimals = ProcessSickness(random);
         var overpopulationLosses = ProcessOverpopulation(random);
 
+        // Natural losses are not modeled yet, so this list stays empty for now
         return new HabitatMonthlyOutcome(Array.Empty<Animal>(), overpopulationLosses, newlySickAnimals);
     }
 
-    /// Pour chaque animal en excès de capacité, 50% de chance qu'il meure.
+    /// <summary>
+    /// Returns a short readable summary of the habitat
+    /// </summary>
+    public override string ToString() =>
+        $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | Animaux: {Animals.Count}/{Capacity}";
+    
+    // Each monthly attempt can kill one living animal while the habitat stays over capacity
     private IReadOnlyList<Animal> ProcessOverpopulation(Random random)
     {
         var lost = new List<Animal>();
         const double OverpopulationDeathChance = 0.5;
 
+        // Nothing happens if the habitat is still inside its capacity
         if (Animals.Count <= Capacity)
             return lost;
 
@@ -119,11 +165,8 @@ public class Habitat
 
         return lost;
     }
-
-    public override string ToString() =>
-        $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | Animaux: {Animals.Count}/{Capacity}";
     
-    /// Tire aléatoirement les nouvelles maladies ce mois (proba annuelle → mensuelle).
+    // The yearly probability is converted to a lighter monthly roll
     private IReadOnlyList<Animal> ProcessSickness(Random random)
     {
         double monthlyChance = 1.0 - Math.Pow(1.0 - (double)LossProbability, 1.0 / 12.0);
@@ -131,6 +174,7 @@ public class Habitat
 
         foreach (var animal in Animals.Where(a => a.IsAlive && !a.IsSick))
         {
+            // Each healthy animal gets its own monthly sickness roll
             if (random.NextDouble() < monthlyChance)
             {
                 if (animal.ContractSickness(random))
@@ -140,5 +184,4 @@ public class Habitat
 
         return newlySickAnimals;
     }
-
 }

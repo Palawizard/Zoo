@@ -5,8 +5,14 @@ using Zoo.Domain.Habitats;
 
 namespace Zoo.Presentation.ConsoleApp;
 
+/// <summary>
+/// Prints the console UI of the zoo application
+/// </summary>
 public sealed class ZooConsolePrinter
 {
+    /// <summary>
+    /// Prints the welcome banner
+    /// </summary>
     public void PrintWelcome()
     {
         Console.WriteLine("====================================");
@@ -14,6 +20,9 @@ public sealed class ZooConsolePrinter
         Console.WriteLine("====================================");
     }
 
+    /// <summary>
+    /// Prints the main menu
+    /// </summary>
     public void PrintMenu()
     {
         Console.WriteLine();
@@ -28,6 +37,9 @@ public sealed class ZooConsolePrinter
         Console.WriteLine("0. Quit");
     }
 
+    /// <summary>
+    /// Prints the full zoo status
+    /// </summary>
     public void PrintStatus(ZooSimulationService simulation)
     {
         Console.WriteLine();
@@ -50,6 +62,9 @@ public sealed class ZooConsolePrinter
         PrintAnimals(simulation.Animals, simulation.Habitats);
     }
 
+    /// <summary>
+    /// Prints a list of events
+    /// </summary>
     public void PrintEvents(IEnumerable<ZooEvent> events)
     {
         var list = events.ToList();
@@ -64,6 +79,7 @@ public sealed class ZooConsolePrinter
         }
     }
 
+    // Habitats are shown before animals to give quick context
     private void PrintHabitats(IReadOnlyList<Habitat> habitats)
     {
         Console.WriteLine();
@@ -82,6 +98,7 @@ public sealed class ZooConsolePrinter
         }
     }
 
+    // Each animal line includes health, hunger and habitat information
     private void PrintAnimals(IReadOnlyList<ZooAnimal> animals, IReadOnlyList<Habitat> habitats)
     {
         Console.WriteLine();
@@ -104,6 +121,7 @@ public sealed class ZooConsolePrinter
         }
     }
 
+    // The habitat label is resolved from the habitat collection
     private static string FindHabitatLabel(ZooAnimal animal, IReadOnlyList<Habitat> habitats)
     {
         var habitat = habitats.FirstOrDefault(h => h.Animals.Contains(animal));

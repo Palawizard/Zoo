@@ -1,7 +1,13 @@
 namespace Zoo.Domain.Animals;
 
+/// <summary>
+/// Concrete animal type used by the zoo simulation
+/// </summary>
 public sealed class ZooAnimal : Animal
 {
+    /// <summary>
+    /// Creates a zoo animal with its current state
+    /// </summary>
     public ZooAnimal(
         string name,
         SexType sex,

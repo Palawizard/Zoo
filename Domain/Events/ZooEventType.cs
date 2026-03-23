@@ -1,5 +1,8 @@
 namespace Zoo.Domain.Events;
 
+/// <summary>
+/// Lists the event kinds that can appear in the simulation log
+/// </summary>
 public enum ZooEventType
 {
     SimulationInitialized,

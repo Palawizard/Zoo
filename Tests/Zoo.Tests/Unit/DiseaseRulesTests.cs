@@ -2,8 +2,14 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Tests.Unit;
 
+/// <summary>
+/// Unit tests for animal disease rules
+/// </summary>
 public sealed class DiseaseRulesTests
 {
+    /// <summary>
+    /// Checks that sickness duration stays inside the expected range
+    /// </summary>
     [Fact]
     public void ContractSicknessSetsDurationWithinAllowedRange()
     {
@@ -16,6 +22,9 @@ public sealed class DiseaseRulesTests
         Assert.InRange(eagle.DiseaseRemainingDays, 24, 36);
     }
 
+    /// <summary>
+    /// Checks that a sick female cannot start gestation
+    /// </summary>
     [Fact]
     public void SickAnimalCannotStartGestation()
     {
