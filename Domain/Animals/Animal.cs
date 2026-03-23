@@ -29,7 +29,14 @@ public abstract class Animal
     public bool IsAlive => Health != HealthStatus.Dead;
     public bool IsSick => Health == HealthStatus.Sick;
 
+    /// <summary>
+    /// Marks the animal as sick
+    /// </summary>
     public void MakeSick() => Health = HealthStatus.Sick;
+
+    /// <summary>
+    /// Marks the animal as dead and clears temporary states
+    /// </summary>
     public void Kill()
     {
         Health = HealthStatus.Dead;
@@ -41,6 +48,10 @@ public abstract class Animal
         EggIncubationRemainingDays = 0;
         DiseaseRemainingDays = 0;
     }
+
+    /// <summary>
+    /// Renames the animal after trimming the value
+    /// </summary>
     public void Rename(string name)
     {
         var trimmedName = name.Trim();
@@ -49,10 +60,17 @@ public abstract class Animal
 
         Name = trimmedName;
     }
+
+    /// <summary>
+    /// Restores the animal to a healthy state
+    /// </summary>
     public void Heal() => Health = HealthStatus.Healthy;
     
     private const decimal DiseaseDeathProbability = 0.10m;
 
+    /// <summary>
+    /// Creates a new animal with its current state
+    /// </summary>
     protected Animal(string name, SexType sex, SpeciesType species, int ageDays, bool isHungry, bool isSick)
     {
         Name = name;
@@ -73,16 +91,26 @@ public abstract class Animal
             StartDisease();
     }
 
+    /// <summary>
+    /// Returns the food needed for the day
+    /// </summary>
     public decimal GetDailyFoodNeedKg()
     {
+        // Gestating females need more food
         if (Sex == SexType.Female && IsGestating)
             return Profile.DailyFoodKg * GestatingFemaleFoodMultiplier;
 
         return Profile.DailyFoodKg;
     }
 
+    /// <summary>
+    /// Applies the daily feeding
+    /// </summary>
     public void ApplyDailyFeeding(decimal kgProvided) => Feed(kgProvided);
 
+    /// <summary>
+    /// Feeds the animal and updates hunger
+    /// </summary>
     public void Feed(decimal kgProvided)
     {
         if (!IsAlive)
@@ -98,10 +126,14 @@ public abstract class Animal
             return;
         }
 
+        // Not enough food counts as a missed day
         HungerDebtDays++;
         IsHungry = HungerDebtDays >= Profile.DaysBeforeHungry;
     }
 
+    /// <summary>
+    /// Advances the animal by one day
+    /// </summary>
     public AnimalDailyOutcome AdvanceOneDay()
     {
         if (!IsAlive)
@@ -110,6 +142,8 @@ public abstract class Animal
         AgeDays++;
         ProgressArrivalReproductionBlockOneDay();
         var wasSick = IsSick;
+
+        // Disease is resolved before other death checks
         if (ProgressDiseaseOneDay())
             return new AnimalDailyOutcome(DiedOfDisease: true);
 
@@ -132,6 +166,9 @@ public abstract class Animal
         return new AnimalDailyOutcome(DiedOfOldAge: true);
     }
 
+    /// <summary>
+    /// Tries to infect the animal for the day
+    /// </summary>
     public bool TryCatchDiseaseToday()
     {
         if (!IsAlive || IsSick)
@@ -151,6 +188,9 @@ public abstract class Animal
         return false;
     }
 
+    /// <summary>
+    /// Forces the animal to become sick
+    /// </summary>
     public bool ContractSickness(Random random)
     {
         ArgumentNullException.ThrowIfNull(random);
@@ -162,26 +202,41 @@ public abstract class Animal
         return true;
     }
 
+    /// <summary>
+    /// Returns whether the animal can reproduce today
+    /// </summary>
     public bool CanReproduceToday()
     {
         return IsAlive && !IsHungry && !IsSick && !IsBlockedFromReproductionByArrival();
     }
 
+    /// <summary>
+    /// Returns whether the animal is sexually mature
+    /// </summary>
     public bool HasReachedSexualMaturity()
     {
         return AgeDays >= Profile.SexualMaturityDays;
     }
 
+    /// <summary>
+    /// Returns whether the animal is past its reproduction age
+    /// </summary>
     public bool HasReachedReproductionEnd()
     {
         return AgeDays >= Profile.ReproductionEndDays;
     }
 
+    /// <summary>
+    /// Returns whether the animal can reproduce based on age
+    /// </summary>
     public bool CanReproduceByAge()
     {
         return HasReachedSexualMaturity() && !HasReachedReproductionEnd();
     }
 
+    /// <summary>
+    /// Returns whether a female can start gestation today
+    /// </summary>
     public bool CanStartGestationToday()
     {
         return Sex == SexType.Female
@@ -196,6 +251,9 @@ public abstract class Animal
             && !IsBlockedFromReproductionByArrival();
     }
 
+    /// <summary>
+    /// Starts gestation if possible
+    /// </summary>
     public void StartGestation()
     {
         if (!CanStartGestationToday())
@@ -208,6 +266,9 @@ public abstract class Animal
         GestationRemainingDays = gestationDays;
     }
 
+    /// <summary>
+    /// Advances gestation by one day
+    /// </summary>
     public int ProgressGestationOneDay()
     {
         if (!IsGestating || GestationRemainingDays <= 0)
@@ -215,6 +276,7 @@ public abstract class Animal
 
         if (IsHungry)
         {
+            // Hunger interrupts the gestation
             IsGestating = false;
             GestationRemainingDays = 0;
             return 0;
@@ -229,6 +291,9 @@ public abstract class Animal
         return Profile.LitterSize ?? 0;
     }
 
+    /// <summary>
+    /// Returns whether the animal can lay eggs this month
+    /// </summary>
     public bool CanLayEggThisMonth(int month)
     {
         var canLay = Sex == SexType.Female
@@ -249,6 +314,9 @@ public abstract class Animal
         return Profile.EggsPerYear is > 0;
     }
 
+    /// <summary>
+    /// Starts egg incubation if possible
+    /// </summary>
     public void StartEggIncubation(int eggCount, int month)
     {
         if (eggCount <= 0)
@@ -267,6 +335,9 @@ public abstract class Animal
         EggIncubationRemainingDays = incubationDays;
     }
 
+    /// <summary>
+    /// Advances egg incubation by one day
+    /// </summary>
     public int ProgressEggIncubationOneDay()
     {
         if (PendingEggs <= 0 || EggIncubationRemainingDays <= 0)
@@ -282,60 +353,84 @@ public abstract class Animal
         return hatched;
     }
 
+    /// <summary>
+    /// Registers the animal arrival in the zoo
+    /// </summary>
     public void RegisterArrivalInZoo()
     {
+        // Adults cannot reproduce immediately after arrival
         AdultArrivalReproductionBlockRemainingDays =
             HasReachedSexualMaturity() ? AdultArrivalReproductionBlockDays : 0;
     }
 
+    /// <summary>
+    /// Advances the reproduction cooldown by one month
+    /// </summary>
     public void ProgressReproductionOneMonth()
     {
         if (MonthsUntilNextLitter > 0)
             MonthsUntilNextLitter--;
     }
 
+    /// <summary>
+    /// Starts the cooldown before a new litter
+    /// </summary>
     public void RegisterBirthCycleCompleted()
     {
         MonthsUntilNextLitter = Math.Max(0, Profile.MinMonthsBetweenLitters ?? 0);
     }
 
+    /// <summary>
+    /// Advances the arrival reproduction block by one day
+    /// </summary>
     public void ProgressArrivalReproductionBlockOneDay()
     {
         if (AdultArrivalReproductionBlockRemainingDays > 0)
             AdultArrivalReproductionBlockRemainingDays--;
     }
 
+    /// <summary>
+    /// Returns whether arrival still blocks reproduction
+    /// </summary>
     public bool IsBlockedFromReproductionByArrival()
     {
         return AdultArrivalReproductionBlockRemainingDays > 0;
     }
 
+    /// <summary>
+    /// Returns whether the animal can be shown to the public
+    /// </summary>
     public bool IsExposedToPublic()
     {
         return IsAlive && !IsGestating;
     }
 
+    // Egg-laying species are identified from the profile
     private bool IsEggLayer()
     {
         return Profile.EggsPerYear is > 0 || Profile.EggLayingMonth is not null;
     }
 
+    // A new litter can start only when the cooldown is over
     private bool CanStartNewLitter()
     {
         return MonthsUntilNextLitter == 0;
     }
 
+    // Uses the shared random source
     private void StartDisease()
     {
         StartDisease(Random.Shared);
     }
 
+    // Disease duration is rolled once at the start
     private void StartDisease(Random random)
     {
         MakeSick();
         DiseaseRemainingDays = GetRandomDiseaseDurationDays(random);
     }
 
+    // Returns true only if the disease kills the animal
     private bool ProgressDiseaseOneDay()
     {
         if (!IsSick || DiseaseRemainingDays <= 0)
@@ -359,6 +454,7 @@ public abstract class Animal
         return false;
     }
 
+    // Disease duration slightly varies around the base value
     private int GetRandomDiseaseDurationDays(Random random)
     {
         ArgumentNullException.ThrowIfNull(random);
@@ -370,6 +466,7 @@ public abstract class Animal
         return random.Next(minDuration, maxDuration + 1);
     }
 
+    // Converts the annual probability into a daily probability
     private decimal GetDailyDiseaseProbability()
     {
         var annualProbability = Math.Clamp(Profile.AnnualDiseaseProbability, 0m, 1m);
@@ -378,6 +475,7 @@ public abstract class Animal
         return (decimal)dailyProbability;
     }
 
+    // Hunger becomes lethal after too many missed days
     private bool HasReachedStarvationDeathThreshold()
     {
         var threshold = Math.Max(1, Profile.DaysBeforeHungry * StarvationDeathMultiplier);
