@@ -10,6 +10,9 @@ using Zoo.Domain.Visitors;
 
 namespace Zoo.Application.Simulation;
 
+/// <summary>
+/// Main application service that drives the zoo simulation
+/// </summary>
 public sealed partial class ZooSimulationService
 {
     private const decimal DeadAnimalSaleMultiplier = 0.05m;
@@ -44,6 +47,9 @@ public sealed partial class ZooSimulationService
 
     public bool IsHighSeason => CurrentMonth >= 5 && CurrentMonth <= 9;
 
+    /// <summary>
+    /// Creates a simulation with optional starting state
+    /// </summary>
     public ZooSimulationService(
         IEnumerable<ZooAnimal>? animals = null,
         decimal meatStockKg = 0m,
@@ -75,6 +81,9 @@ public sealed partial class ZooSimulationService
             AddAnimal(animal);
     }
 
+    /// <summary>
+    /// Adds an animal to the simulation
+    /// </summary>
     public void AddAnimal(ZooAnimal animal)
     {
         ArgumentNullException.ThrowIfNull(animal);
@@ -83,6 +92,9 @@ public sealed partial class ZooSimulationService
         _animals.Add(animal);
     }
 
+    /// <summary>
+    /// Buys an animal and adds it to the zoo if enough cash is available
+    /// </summary>
     public bool BuyAnimal(ZooAnimal animal)
     {
         ArgumentNullException.ThrowIfNull(animal);
@@ -98,6 +110,9 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    /// <summary>
+    /// Sells an animal currently owned by the zoo
+    /// </summary>
     public bool SellAnimal(ZooAnimal animal)
     {
         ArgumentNullException.ThrowIfNull(animal);
@@ -114,6 +129,9 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    /// <summary>
+    /// Estimates the sale price of an animal
+    /// </summary>
     public decimal EstimateAnimalSalePrice(ZooAnimal animal)
     {
         ArgumentNullException.ThrowIfNull(animal);
@@ -122,6 +140,9 @@ public sealed partial class ZooSimulationService
         return animal.IsAlive ? basePrice : decimal.Round(basePrice * DeadAnimalSaleMultiplier, 2);
     }
 
+    /// <summary>
+    /// Buys a new habitat for the given species
+    /// </summary>
     public bool BuyHabitat(SpeciesType species)
     {
         var habitat = HabitatFactory.Create(species);
@@ -136,6 +157,9 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    /// <summary>
+    /// Sells an empty habitat
+    /// </summary>
     public bool SellHabitat(Habitat habitat)
     {
         ArgumentNullException.ThrowIfNull(habitat);
@@ -151,6 +175,9 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    /// <summary>
+    /// Buys food and adds it to the stock
+    /// </summary>
     public bool BuyFood(FoodType type, decimal kg)
     {
         if (kg < 0m)
@@ -171,6 +198,9 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    /// <summary>
+    /// Adds food directly to the stock
+    /// </summary>
     public void AddFood(FoodType type, decimal kg)
     {
         if (kg < 0m)
@@ -182,17 +212,26 @@ public sealed partial class ZooSimulationService
             SeedsStockKg += kg;
     }
 
+    /// <summary>
+    /// Returns the current food stock
+    /// </summary>
     public (decimal MeatKg, decimal SeedsKg) GetFoodStock()
     {
         return (MeatStockKg, SeedsStockKg);
     }
 
+    /// <summary>
+    /// Calculates projected visitor revenue by species
+    /// </summary>
     public IReadOnlyDictionary<SpeciesType, decimal> CalculateVisitorRevenueBySpecies(bool isHighSeason)
     {
         var exposedAnimals = GetAnimalsExposedToPublic();
         return _visitorRevenueCalculator.CalculateBySpecies(exposedAnimals, isHighSeason);
     }
 
+    /// <summary>
+    /// Collects the visitor revenue for the current season
+    /// </summary>
     public decimal CollectVisitorRevenue(bool isHighSeason)
     {
         var revenueBySpecies = CalculateVisitorRevenueBySpecies(isHighSeason);
@@ -200,6 +239,7 @@ public sealed partial class ZooSimulationService
 
         if (total > 0m)
         {
+            // Visitor revenue is logged only when the amount is positive
             var seasonLabel = isHighSeason ? "high" : "low";
             AddCash(total, $"Visitors income ({seasonLabel} season)", "Visitors");
             AddEvent(
@@ -210,6 +250,9 @@ public sealed partial class ZooSimulationService
         return total;
     }
 
+    /// <summary>
+    /// Overrides the current month
+    /// </summary>
     public void SetCurrentMonth(int month)
     {
         if (month < 1 || month > 12)
@@ -218,6 +261,9 @@ public sealed partial class ZooSimulationService
         CurrentMonth = month;
     }
 
+    /// <summary>
+    /// Returns the animals currently visible to visitors
+    /// </summary>
     public IReadOnlyList<ZooAnimal> GetAnimalsExposedToPublic()
     {
         var housedAnimals = _habitats
@@ -230,6 +276,9 @@ public sealed partial class ZooSimulationService
             .ToList();
     }
 
+    /// <summary>
+    /// Adds cash and records it in the ledger
+    /// </summary>
     public void AddCash(decimal amount, string description = "Cash in", string category = "Income")
     {
         if (amount < 0m)
@@ -239,6 +288,9 @@ public sealed partial class ZooSimulationService
         Ledger.Add(new Transaction(DateTime.UtcNow, amount, description, category, Cash));
     }
 
+    /// <summary>
+    /// Spends cash if enough balance is available
+    /// </summary>
     public bool SpendCash(decimal amount, string description = "Cash out", string category = "Expense")
     {
         if (amount < 0m)
@@ -251,6 +303,7 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    // Stock consumption never goes below zero
     private decimal ConsumeFromStock(FoodType type, decimal requestedKg)
     {
         if (requestedKg <= 0m)
@@ -268,6 +321,7 @@ public sealed partial class ZooSimulationService
         return consumedSeeds;
     }
 
+    // Selling or removing an animal must also clean pairings and habitat occupancy
     private void RemoveAnimalFromZoo(ZooAnimal animal)
     {
         ArgumentNullException.ThrowIfNull(animal);
@@ -277,12 +331,14 @@ public sealed partial class ZooSimulationService
         RemoveAnimalFromHabitats(animal);
     }
 
+    // One animal can only be in one habitat at a time
     private void RemoveAnimalFromHabitats(ZooAnimal animal)
     {
         foreach (var habitat in _habitats)
             habitat.RemoveAnimal(animal);
     }
 
+    // New animals are placed in the habitat with the most room left
     private bool TryPlaceAnimalInHabitat(ZooAnimal animal)
     {
         var habitat = _habitats
@@ -290,6 +346,7 @@ public sealed partial class ZooSimulationService
             .OrderByDescending(h => h.AvailableSlots)
             .FirstOrDefault();
 
+        // Placement can fail when the zoo owns no suitable free habitat
         if (habitat is null)
             return false;
 
@@ -297,6 +354,7 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    // This sums the free slots across all habitats of one species
     private int GetAvailableHabitatSlots(SpeciesType species)
     {
         return _habitats
@@ -304,6 +362,7 @@ public sealed partial class ZooSimulationService
             .Sum(habitat => habitat.AvailableSlots);
     }
 
+    // Events always use the current simulation date
     private void AddEvent(ZooEventType type, string description)
     {
         _events.Add(new ZooEvent(

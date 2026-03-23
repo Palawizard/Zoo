@@ -4,8 +4,14 @@ using Zoo.Domain.Finance;
 
 namespace Zoo.Desktop.Models;
 
+/// <summary>
+/// View model row used to display one ledger transaction
+/// </summary>
 public sealed class LedgerRow
 {
+    /// <summary>
+    /// Creates a desktop row for one transaction
+    /// </summary>
     public LedgerRow(Transaction transaction)
     {
         Transaction = transaction;

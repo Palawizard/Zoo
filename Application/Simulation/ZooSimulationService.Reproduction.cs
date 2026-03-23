@@ -8,12 +8,18 @@ namespace Zoo.Application.Simulation;
 
 public sealed partial class ZooSimulationService
 {
+    /// <summary>
+    /// Bundles the result of one birth or hatch cycle
+    /// </summary>
     private sealed record OffspringBatchResult(
         IReadOnlyList<ZooAnimal> Newborns,
         int TotalBornCount,
         int SurvivorCount,
         int InfantDeathCount);
 
+    /// <summary>
+    /// Returns the next newborn waiting for a final name
+    /// </summary>
     public ZooAnimal? PeekNewbornAwaitingName()
     {
         CleanupPendingNewbornNaming();
@@ -23,6 +29,9 @@ public sealed partial class ZooSimulationService
             : null;
     }
 
+    /// <summary>
+    /// Finalizes the name of the next newborn waiting in the queue
+    /// </summary>
     public bool TryFinalizeNextNewbornNaming(string? chosenName, out ZooAnimal? newborn, out string failureReason)
     {
         CleanupPendingNewbornNaming();
@@ -46,12 +55,18 @@ public sealed partial class ZooSimulationService
         return false;
     }
 
+    /// <summary>
+    /// Returns whether one animal can reproduce today
+    /// </summary>
     public bool CanReproduceToday(Animal animal)
     {
         ArgumentNullException.ThrowIfNull(animal);
         return animal.CanReproduceToday();
     }
 
+    /// <summary>
+    /// Returns whether both animals can reproduce today
+    /// </summary>
     public bool CanReproduceToday(Animal first, Animal second)
     {
         ArgumentNullException.ThrowIfNull(first);
@@ -59,6 +74,9 @@ public sealed partial class ZooSimulationService
         return first.CanReproduceToday() && second.CanReproduceToday();
     }
 
+    /// <summary>
+    /// Advances all current gestations
+    /// </summary>
     public void ProcessGestations()
     {
         ProcessOffspringCycle(
@@ -67,6 +85,9 @@ public sealed partial class ZooSimulationService
             (female, batch) => $"{female.Name} gave birth to {batch.TotalBornCount} {female.Species} newborn(s).");
     }
 
+    /// <summary>
+    /// Advances all current egg incubations
+    /// </summary>
     public void ProcessEggIncubations()
     {
         ProcessOffspringCycle(
@@ -75,6 +96,9 @@ public sealed partial class ZooSimulationService
             (female, batch) => $"{female.Name} hatched {batch.TotalBornCount} {female.Species} newborn(s).");
     }
 
+    /// <summary>
+    /// Tries to start new gestations in all habitats
+    /// </summary>
     public void TryStartPregnancies()
     {
         CleanupInvalidMonogamousPairs();
@@ -106,6 +130,9 @@ public sealed partial class ZooSimulationService
         }
     }
 
+    /// <summary>
+    /// Tries to start egg incubation for the current month
+    /// </summary>
     public void TryEggLayingForCurrentMonth()
     {
         CleanupInvalidMonogamousPairs();
@@ -140,6 +167,7 @@ public sealed partial class ZooSimulationService
         }
     }
 
+    // The same pipeline is used for mammals and egg-laying species
     private void ProcessOffspringCycle(
         IEnumerable<ZooAnimal> mothers,
         Func<ZooAnimal, int> completeCycle,
@@ -147,6 +175,7 @@ public sealed partial class ZooSimulationService
     {
         var newborns = new List<ZooAnimal>();
 
+        // ToList avoids modifying the underlying sequence while newborns are added later
         foreach (var female in mothers.ToList())
         {
             var bornCount = completeCycle(female);
@@ -155,6 +184,7 @@ public sealed partial class ZooSimulationService
 
             female.RegisterBirthCycleCompleted();
 
+            // Newborns already queued this turn also consume future habitat space
             var queuedForSpecies = newborns.Count(animal => animal.Species == female.Species);
             var availableHabitatSlots = GetRemainingHabitatCapacityForSpecies(female.Species, queuedForSpecies);
             var batch = CreateOffspringBatch(
@@ -171,6 +201,7 @@ public sealed partial class ZooSimulationService
         AddNewbornsToZoo(newborns);
     }
 
+    // Birth and infant mortality are logged separately
     private void EmitOffspringEvents(
         ZooAnimal female,
         OffspringBatchResult batch,
@@ -187,10 +218,11 @@ public sealed partial class ZooSimulationService
         {
             AddEvent(
                 Domain.Events.ZooEventType.InfantDeath,
-                $"{batch.InfantDeathCount} {female.Species} newborn(s) died from infant mortality.");
+            $"{batch.InfantDeathCount} {female.Species} newborn(s) died from infant mortality.");
         }
     }
 
+    // The batch is trimmed if there is not enough habitat space left
     private OffspringBatchResult CreateOffspringBatch(
         SpeciesType species,
         string parentName,
@@ -199,6 +231,8 @@ public sealed partial class ZooSimulationService
         int availableHabitatSlots)
     {
         var survivorCount = ComputeSurvivorsAfterInfantMortality(count, infantMortalityRate);
+
+        // Newborns beyond the available habitat space are discarded here
         survivorCount = Math.Min(survivorCount, Math.Max(0, availableHabitatSlots));
 
         var newborns = new List<ZooAnimal>(survivorCount);
@@ -216,6 +250,7 @@ public sealed partial class ZooSimulationService
             count - survivorCount);
     }
 
+    // Each newborn gets a mortality roll based on the species profile
     private static int ComputeSurvivorsAfterInfantMortality(int newbornCount, decimal? infantMortalityRate)
     {
         if (newbornCount <= 0)
@@ -238,6 +273,7 @@ public sealed partial class ZooSimulationService
         return survivors;
     }
 
+    // The rate is normalized before the mortality rolls
     private static decimal NormalizeInfantMortalityRate(decimal? infantMortalityRate)
     {
         if (!infantMortalityRate.HasValue)
@@ -246,6 +282,7 @@ public sealed partial class ZooSimulationService
         return Math.Clamp(infantMortalityRate.Value, 0m, 1m);
     }
 
+    // Egg counts depend on either a fixed laying month or a yearly quota
     private static int GetEggCountForMonth(Animal female, int month)
     {
         if (female.Profile.EggLayingMonth is int layingMonth &&
@@ -253,6 +290,7 @@ public sealed partial class ZooSimulationService
             female.Profile.LitterSize is int litterSize &&
             litterSize > 0)
         {
+            // Fixed laying month species use their litter size as the egg batch
             return litterSize;
         }
 
@@ -260,12 +298,15 @@ public sealed partial class ZooSimulationService
         {
             var baseEggs = eggsPerYear / 12;
             var remainder = eggsPerYear % 12;
+
+            // The remainder is spread over the first months of the year
             return baseEggs + (month <= remainder ? 1 : 0);
         }
 
         return 0;
     }
 
+    // Temporary names let the UI queue newborn naming later
     private static string BuildTemporaryNewbornName(SpeciesType species, string parentName, int order)
     {
         var label = species switch
@@ -279,6 +320,7 @@ public sealed partial class ZooSimulationService
         return $"{label} of {parentName} {order}";
     }
 
+    // Newborns are added first, then placed into habitats if possible
     private void AddNewbornsToZoo(IEnumerable<ZooAnimal> newborns)
     {
         foreach (var newborn in newborns)
@@ -289,6 +331,7 @@ public sealed partial class ZooSimulationService
         }
     }
 
+    // Dead or missing newborns are removed from the naming queue
     private void CleanupPendingNewbornNaming()
     {
         while (_pendingNewbornNaming.TryPeek(out var animalId) &&
@@ -298,6 +341,7 @@ public sealed partial class ZooSimulationService
         }
     }
 
+    // Reserved slots account for pregnancies and incubating eggs already in progress
     private int GetReservedOffspringSlots(SpeciesType species)
     {
         return _animals
@@ -305,6 +349,7 @@ public sealed partial class ZooSimulationService
             .Sum(GetReservedOffspringCount);
     }
 
+    // Future offspring already consume habitat capacity before they are born
     private static int GetReservedOffspringCount(ZooAnimal animal)
     {
         if (animal.IsGestating)
@@ -315,22 +360,26 @@ public sealed partial class ZooSimulationService
         return 0;
     }
 
+    // Queued newborns are counted before they are placed
     private int GetRemainingHabitatCapacityForSpecies(SpeciesType species, int queuedNewborns)
     {
         return Math.Max(0, GetAvailableHabitatSlots(species) - queuedNewborns);
     }
 
+    // Today's reservations are tracked separately from already existing pregnancies
     private bool HasCapacityForAdditionalOffspring(SpeciesType species, int requiredSlots, int reservedToday)
     {
         var remainingSlots = GetAvailableHabitatSlots(species) - GetReservedOffspringSlots(species) - reservedToday;
         return remainingSlots >= requiredSlots;
     }
 
+    // Litter size falls back to one when the profile does not define it
     private static int GetExpectedOffspringCount(ZooAnimal female)
     {
         return Math.Max(1, female.Profile.LitterSize ?? 1);
     }
 
+    // Monogamous species need a stable partner, others just need any eligible male
     private bool HasEligibleMate(Habitat habitat, ZooAnimal female)
     {
         if (female.Profile.IsMonogamous)
@@ -339,11 +388,13 @@ public sealed partial class ZooSimulationService
             return partner is not null && IsEligibleMaleForReproduction(partner);
         }
 
+        // Non-monogamous species only need one eligible male in the habitat
         return habitat.Animals
             .OfType<ZooAnimal>()
             .Any(IsEligibleMaleForReproduction);
     }
 
+    // Males must be alive, healthy and in the right age window
     private static bool IsEligibleMaleForReproduction(ZooAnimal animal)
     {
         return animal.Sex == SexType.Male
@@ -351,6 +402,7 @@ public sealed partial class ZooSimulationService
             && animal.CanReproduceByAge();
     }
 
+    // Existing monogamous pairs are reused as long as they stay valid
     private ZooAnimal? GetOrCreateMonogamousPartner(Habitat habitat, ZooAnimal female)
     {
         var existingPartner = GetPairedAnimal(female);
@@ -362,6 +414,7 @@ public sealed partial class ZooSimulationService
             RemovePairing(female.Id);
         }
 
+        // A male already paired with another female cannot be reused here
         var availableMale = habitat.Animals
             .OfType<ZooAnimal>()
             .FirstOrDefault(animal =>
@@ -376,6 +429,7 @@ public sealed partial class ZooSimulationService
         return availableMale;
     }
 
+    // Pairings are stored by animal id instead of direct references
     private ZooAnimal? GetPairedAnimal(ZooAnimal animal)
     {
         if (!_monogamousPairs.TryGetValue(animal.Id, out var partnerId))
@@ -384,6 +438,7 @@ public sealed partial class ZooSimulationService
         return _animals.FirstOrDefault(candidate => candidate.Id == partnerId && candidate.IsAlive);
     }
 
+    // Pair registration stays symmetric in the dictionary
     private void RegisterPair(ZooAnimal first, ZooAnimal second)
     {
         RemovePairing(first.Id);
@@ -392,6 +447,7 @@ public sealed partial class ZooSimulationService
         _monogamousPairs[second.Id] = first.Id;
     }
 
+    // Removing one side also removes the reverse link
     private void RemovePairing(Guid animalId)
     {
         if (!_monogamousPairs.Remove(animalId, out var partnerId))
@@ -400,6 +456,7 @@ public sealed partial class ZooSimulationService
         _monogamousPairs.Remove(partnerId);
     }
 
+    // Dead animals cannot stay inside a monogamous pair
     private void CleanupInvalidMonogamousPairs()
     {
         var aliveAnimalIds = _animals

@@ -1,3 +1,6 @@
+/// <summary>
+/// Stores the fixed biological and gameplay data for one species and sex
+/// </summary>
 public sealed record AnimalProfile(
     SpeciesType Species,
     SexType Sex,

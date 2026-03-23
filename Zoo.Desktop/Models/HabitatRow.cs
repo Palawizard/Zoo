@@ -4,8 +4,14 @@ using Zoo.Domain.Habitats;
 
 namespace Zoo.Desktop.Models;
 
+/// <summary>
+/// View model row used to display one habitat
+/// </summary>
 public sealed class HabitatRow
 {
+    /// <summary>
+    /// Creates a desktop row for one habitat
+    /// </summary>
     public HabitatRow(Habitat habitat)
     {
         Habitat = habitat;

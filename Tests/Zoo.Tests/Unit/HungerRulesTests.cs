@@ -2,8 +2,14 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Tests.Unit;
 
+/// <summary>
+/// Unit tests for hunger and food need rules
+/// </summary>
 public sealed class HungerRulesTests
 {
+    /// <summary>
+    /// Checks that a tiger becomes hungry after two missed feedings
+    /// </summary>
     [Fact]
     public void TigerBecomesHungryAfterTwoDaysWithoutEnoughFood()
     {
@@ -20,6 +26,9 @@ public sealed class HungerRulesTests
         Assert.Equal(2, tiger.HungerDebtDays);
     }
 
+    /// <summary>
+    /// Checks that gestation doubles the daily food need of a female
+    /// </summary>
     [Fact]
     public void GestatingFemaleNeedsDoubleFood()
     {
@@ -33,6 +42,9 @@ public sealed class HungerRulesTests
         Assert.Equal(20m, tigress.GetDailyFoodNeedKg());
     }
 
+    /// <summary>
+    /// Checks that extended starvation eventually kills the animal
+    /// </summary>
     [Fact]
     public void TigerDiesAfterExtendedStarvation()
     {

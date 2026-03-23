@@ -6,8 +6,12 @@ using Zoo.Application.Simulation;
 
 namespace Zoo.Desktop.Dialogs;
 
+/// <summary>
+/// Dialog shown when a habitat emergency needs a player decision
+/// </summary>
 public sealed class HabitatEmergencyDialog : Window
 {
+    // The constructor stays private because the dialog is opened through ShowAsync
     private HabitatEmergencyDialog(PendingHabitatEmergency emergency)
     {
         Title = "Habitat emergency";
@@ -120,6 +124,9 @@ public sealed class HabitatEmergencyDialog : Window
         };
     }
 
+    /// <summary>
+    /// Shows the habitat emergency dialog
+    /// </summary>
     public static async Task<HabitatEmergencyResolution?> ShowAsync(Window owner, PendingHabitatEmergency emergency)
     {
         var dialog = new HabitatEmergencyDialog(emergency);

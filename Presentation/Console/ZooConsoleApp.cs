@@ -5,12 +5,18 @@ using Zoo.Domain.Habitats;
 
 namespace Zoo.Presentation.ConsoleApp;
 
+/// <summary>
+/// Runs the console version of the zoo application
+/// </summary>
 public sealed class ZooConsoleApp
 {
     private readonly ZooSimulationService _simulation;
     private readonly ConsoleInput _input;
     private readonly ZooConsolePrinter _printer;
 
+    /// <summary>
+    /// Creates the console application shell
+    /// </summary>
     public ZooConsoleApp(ZooSimulationService simulation, ConsoleInput input, ZooConsolePrinter printer)
     {
         _simulation = simulation;
@@ -18,6 +24,9 @@ public sealed class ZooConsoleApp
         _printer = printer;
     }
 
+    /// <summary>
+    /// Starts the main console loop
+    /// </summary>
     public void Run()
     {
         _printer.PrintWelcome();
@@ -64,6 +73,7 @@ public sealed class ZooConsoleApp
         Console.WriteLine("Goodbye!");
     }
 
+    // One turn is advanced first, then only the new events are printed
     private void AdvanceOneTurn()
     {
         var previousEventCount = _simulation.Events.Count;
@@ -80,6 +90,7 @@ public sealed class ZooConsoleApp
         _printer.PrintEvents(newEvents);
     }
 
+    // The canteen only buys food for the stock
     private void HandleCanteen()
     {
         var foodType = _input.ReadEnumChoice<FoodType>("Choose food type:");
@@ -91,6 +102,7 @@ public sealed class ZooConsoleApp
             Console.WriteLine("Purchase denied: not enough cash.");
     }
 
+    // Adding an animal requires both a purchase and a valid habitat placement
     private void HandleAddAnimal()
     {
         var name = _input.ReadRequiredString("Animal name:");
@@ -126,6 +138,7 @@ public sealed class ZooConsoleApp
         }
     }
 
+    // If no habitat is available, the console can offer to buy one on the spot
     private Habitat? SelectHabitatForSpecies(SpeciesType species)
     {
         var habitats = _simulation.Habitats
@@ -163,6 +176,7 @@ public sealed class ZooConsoleApp
         return habitats[choice - 1];
     }
 
+    // Buying a habitat can immediately continue with animal purchases
     private void HandleBuyHabitat()
     {
         var species = _input.ReadEnumChoice<SpeciesType>("Choose habitat species:");
@@ -175,6 +189,7 @@ public sealed class ZooConsoleApp
             Console.WriteLine("Purchase denied: not enough cash.");
     }
 
+    // Animals are selected from the full zoo list
     private void HandleSellAnimal()
     {
         var animals = _simulation.Animals.ToList();
@@ -200,6 +215,7 @@ public sealed class ZooConsoleApp
             Console.WriteLine("Sale failed.");
     }
 
+    // Only empty habitats can be sold
     private void HandleSellHabitat()
     {
         var habitats = _simulation.Habitats.ToList();
@@ -231,6 +247,7 @@ public sealed class ZooConsoleApp
             Console.WriteLine("Sale failed.");
     }
 
+    // This is a small onboarding flow after buying a new habitat
     private void OfferAnimalsForHabitat(SpeciesType species)
     {
         var habitat = _simulation.Habitats.LastOrDefault(h => h.Species == species);

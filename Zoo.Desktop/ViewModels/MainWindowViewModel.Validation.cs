@@ -2,6 +2,7 @@ namespace Zoo.Desktop.ViewModels;
 
 public sealed partial class MainWindowViewModel
 {
+    // Positive integers are used for turn counts and similar inputs
     private bool TryReadPositiveInt(string rawValue, string label, out int value, bool allowZero = false)
     {
         if (!int.TryParse(rawValue, out value) || (allowZero ? value < 0 : value <= 0))
@@ -14,6 +15,7 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
+    // Empty values are accepted and interpreted as zero
     private bool TryReadOptionalNonNegativeInt(string rawValue, string label, out int value)
     {
         if (string.IsNullOrWhiteSpace(rawValue))
@@ -31,6 +33,7 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
+    // Age is entered as years, months and days then converted to days
     private bool TryReadAnimalAge(out int ageDays)
     {
         ageDays = 0;
@@ -54,6 +57,7 @@ public sealed partial class MainWindowViewModel
         }
     }
 
+    // Both dot and comma are accepted for decimal input
     private bool TryReadPositiveDecimal(string rawValue, string label, out decimal value)
     {
         var normalized = rawValue.Trim().Replace(',', '.');

@@ -10,6 +10,9 @@ namespace Zoo.Desktop.ViewModels;
 
 public sealed partial class MainWindowViewModel
 {
+    /// <summary>
+    /// Refreshes the whole desktop snapshot from the simulation state
+    /// </summary>
     private void RefreshSnapshot(Guid? selectedAnimalId = null, Guid? selectedHabitatId = null)
     {
         var animals = _simulation.Animals.OrderBy(animal => animal.Species).ThenBy(animal => animal.Name).ToList();
@@ -36,6 +39,7 @@ public sealed partial class MainWindowViewModel
         RevenueCaption = "Current estimate.";
         UpdateWatchlist(animals, habitats, visibleCount);
 
+        // Refreshing the selected habitat would normally trigger extra UI updates, so it is muted here
         _isRefreshingSnapshot = true;
         try
         {
@@ -92,6 +96,9 @@ public sealed partial class MainWindowViewModel
         RaisePropertyChanged(nameof(LedgerHeader));
     }
 
+    /// <summary>
+    /// Refreshes only the animal rows for the selected habitat
+    /// </summary>
     private void RefreshAnimalRows(
         IReadOnlyList<ZooAnimal>? orderedAnimals = null,
         IReadOnlyList<Habitat>? habitats = null,
@@ -104,6 +111,7 @@ public sealed partial class MainWindowViewModel
             ? Enumerable.Empty<ZooAnimal>()
             : orderedAnimals.Where(animal => SelectedHabitatRow.Habitat.Animals.Contains(animal));
 
+        // Animal rows are filtered by the selected habitat before being mapped for the UI
         SyncCollection(
             AnimalRows,
             animalsInSelectedHabitat.Select(animal =>
@@ -119,6 +127,9 @@ public sealed partial class MainWindowViewModel
         RaisePropertyChanged(nameof(AnimalPanelCaption));
     }
 
+    /// <summary>
+    /// Updates the detail panel for the selected animal
+    /// </summary>
     private void UpdateSelectedAnimalDetails()
     {
         if (SelectedAnimalRow is null)
@@ -150,6 +161,9 @@ public sealed partial class MainWindowViewModel
         };
     }
 
+    /// <summary>
+    /// Updates the detail panel for the selected habitat
+    /// </summary>
     private void UpdateSelectedHabitatDetails()
     {
         if (SelectedHabitatRow is null)
@@ -166,6 +180,9 @@ public sealed partial class MainWindowViewModel
         SelectedHabitatDetail = $"Buy {habitat.BuyPrice:0.##} EUR | Sell {habitat.SellPrice:0.##} EUR | Loss probability {habitat.LossProbability:P0}";
     }
 
+    /// <summary>
+    /// Updates the watchlist summary shown on the dashboard
+    /// </summary>
     private void UpdateWatchlist(IReadOnlyList<ZooAnimal> animals, IReadOnlyList<Habitat> habitats, int visibleCount)
     {
         var aliveAnimals = animals.Where(animal => animal.IsAlive).ToList();
@@ -183,12 +200,14 @@ public sealed partial class MainWindowViewModel
         WatchlistSummary = $"{sickCount} sick | {hungryCount} hungry | {gestatingCount} hidden from visitors | {emptyHabitatCount} empty habitat(s)";
     }
 
+    // The habitat label is derived from the current habitat collection
     private static string FindHabitatLabel(ZooAnimal animal, IEnumerable<Habitat> habitats)
     {
         var habitat = habitats.FirstOrDefault(candidate => candidate.Animals.Contains(animal));
         return habitat is null ? "No habitat" : $"{habitat.Species} habitat";
     }
 
+    // The reproduction note tries to explain why reproduction is blocked
     private string DescribeReproductionStatus(ZooAnimal animal, IReadOnlyList<Habitat> habitats)
     {
         var reasons = new List<string>();
@@ -230,6 +249,7 @@ public sealed partial class MainWindowViewModel
             animal.Profile.EggLayingMonth is int layingMonth &&
             layingMonth != _simulation.CurrentMonth)
         {
+            // Fixed laying month species stay blocked outside their allowed month
             reasons.Add($"lays eggs in month {layingMonth}");
         }
 
@@ -238,11 +258,13 @@ public sealed partial class MainWindowViewModel
             : $"Reproduction blocked: {string.Join(", ", reasons.Distinct())}";
     }
 
+    // This helper just checks whether a compatible mate exists
     private bool HasCompatibleMate(ZooAnimal animal, Habitat habitat)
     {
         return GetCompatibleMate(animal, habitat) is not null;
     }
 
+    // Compatibility depends on species, sex and the current reproduction state
     private ZooAnimal? GetCompatibleMate(ZooAnimal animal, Habitat habitat)
     {
         return habitat.Animals
@@ -257,6 +279,7 @@ public sealed partial class MainWindowViewModel
                     : candidate.CanStartGestationToday() || candidate.CanLayEggThisMonth(_simulation.CurrentMonth)));
     }
 
+    // Only animals that are otherwise ready to reproduce need the free-space check
     private bool NeedsFreeSpaceForReproduction(ZooAnimal animal)
     {
         return animal.IsAlive &&
@@ -269,6 +292,7 @@ public sealed partial class MainWindowViewModel
                animal.EggIncubationRemainingDays == 0;
     }
 
+    // Future offspring reserve habitat slots before they are born
     private bool HasSpaceForFutureOffspring(ZooAnimal animal, ZooAnimal compatibleMate, IReadOnlyList<Habitat> habitats)
     {
         var availableSlots = habitats
@@ -283,6 +307,7 @@ public sealed partial class MainWindowViewModel
         return availableSlots - reservedSlots >= requiredSlots;
     }
 
+    // The expected slot count depends on gestation or egg-laying rules
     private int GetExpectedOffspringSlots(ZooAnimal animal, ZooAnimal? compatibleMate)
     {
         var female = animal.Sex == SexType.Female ? animal : compatibleMate;
@@ -291,6 +316,7 @@ public sealed partial class MainWindowViewModel
 
         if (female.Profile.EggLayingMonth is int layingMonth)
         {
+            // Species with a fixed laying month may need zero slots this month
             if (female.Profile.LitterSize is int litterSize && litterSize > 0 && layingMonth == _simulation.CurrentMonth)
                 return litterSize;
 
@@ -306,6 +332,7 @@ public sealed partial class MainWindowViewModel
         return Math.Max(1, animal.Profile.LitterSize ?? compatibleMate?.Profile.LitterSize ?? 1);
     }
 
+    // Yearly egg counts are spread over the first months of the year
     private static int GetEggCountForMonth(int eggsPerYear, int month)
     {
         var baseEggs = eggsPerYear / 12;
@@ -313,6 +340,7 @@ public sealed partial class MainWindowViewModel
         return baseEggs + (month <= remainder ? 1 : 0);
     }
 
+    // Pregnancies and incubating eggs already consume future space
     private static int GetReservedOffspringCount(ZooAnimal animal)
     {
         if (animal.IsGestating)
@@ -323,6 +351,7 @@ public sealed partial class MainWindowViewModel
         return 0;
     }
 
+    // Turn advanced and routine income stay out of the important list
     private static bool IsImportantEvent(ZooEvent zooEvent)
     {
         return zooEvent.Type is not ZooEventType.TurnAdvanced
@@ -330,11 +359,13 @@ public sealed partial class MainWindowViewModel
             and not ZooEventType.SpoiledMeat;
     }
 
+    // Turn advanced is the only event hidden from popup dialogs
     private static bool ShouldShowPopupForEvent(ZooEvent zooEvent)
     {
         return zooEvent.Type is not ZooEventType.TurnAdvanced;
     }
 
+    // Collections are fully rebuilt from the latest snapshot
     private static void SyncCollection<T>(ObservableCollection<T> target, IEnumerable<T> items)
     {
         target.Clear();

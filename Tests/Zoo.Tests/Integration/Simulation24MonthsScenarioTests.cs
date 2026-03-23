@@ -5,8 +5,14 @@ using Zoo.Domain.Feeding;
 
 namespace Zoo.Tests.Integration;
 
+/// <summary>
+/// Integration tests that run the simulation over a long scenario
+/// </summary>
 public sealed class Simulation24MonthsScenarioTests
 {
+    /// <summary>
+    /// Checks that the simulation can run for two full years without breaking its audit trail
+    /// </summary>
     [Fact]
     public void SimulationCanRunForTwentyFourMonthsWithConsistentAuditLog()
     {

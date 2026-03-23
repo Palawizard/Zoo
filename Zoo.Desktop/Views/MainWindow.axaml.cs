@@ -7,14 +7,23 @@ using Zoo.Desktop.ViewModels;
 
 namespace Zoo.Desktop.Views;
 
+/// <summary>
+/// Code-behind for the desktop main window
+/// </summary>
 public partial class MainWindow : Window
 {
+    /// <summary>
+    /// Creates the main window and its view model
+    /// </summary>
     public MainWindow()
     {
         InitializeComponent();
         DataContext = new MainWindowViewModel();
     }
 
+    /// <summary>
+    /// Loads the XAML view
+    /// </summary>
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
@@ -22,11 +31,17 @@ public partial class MainWindow : Window
 
     private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;
 
+    /// <summary>
+    /// Handles the generic advance action
+    /// </summary>
     private async void HandleAdvanceTurns(object? sender, RoutedEventArgs e)
     {
         await AdvanceTurnsAsync();
     }
 
+    /// <summary>
+    /// Handles preset advance buttons
+    /// </summary>
     private async void HandleAdvancePreset(object? sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: int days })
@@ -39,6 +54,9 @@ public partial class MainWindow : Window
             await AdvanceTurnsAsync(parsedDays);
     }
 
+    /// <summary>
+    /// Handles the buy habitat action
+    /// </summary>
     private async void HandleBuyHabitat(object? sender, RoutedEventArgs e)
     {
         var confirmation = ViewModel.GetBuyHabitatConfirmationMessage();
@@ -57,6 +75,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Handles the buy food action
+    /// </summary>
     private async void HandleBuyFood(object? sender, RoutedEventArgs e)
     {
         var confirmation = ViewModel.GetBuyFoodConfirmationMessage();
@@ -75,6 +96,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Handles the buy animal action
+    /// </summary>
     private async void HandleBuyAnimal(object? sender, RoutedEventArgs e)
     {
         var confirmation = ViewModel.GetBuyAnimalConfirmationMessage();
@@ -93,6 +117,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Handles the sell animal action
+    /// </summary>
     private async void HandleSellAnimal(object? sender, RoutedEventArgs e)
     {
         var confirmation = ViewModel.GetSellAnimalConfirmationMessage();
@@ -107,6 +134,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Handles the sell habitat action
+    /// </summary>
     private async void HandleSellHabitat(object? sender, RoutedEventArgs e)
     {
         var confirmation = ViewModel.GetSellHabitatConfirmationMessage();
@@ -121,6 +151,7 @@ public partial class MainWindow : Window
         }
     }
 
+    // Turn advancement may pause on habitat emergencies
     private async Task AdvanceTurnsAsync(int? overrideDays = null)
     {
         if (!ViewModel.TryGetAdvanceDays(overrideDays, out var days))
@@ -135,6 +166,7 @@ public partial class MainWindow : Window
             var state = ViewModel.AdvanceSingleTurn();
             completedDays++;
 
+            // Dialogs are shown after each turn so the user sees events in order
             await ShowNewEventDialogsAsync(eventCountBeforeTurn);
 
             if (state != TurnAdvanceState.AwaitingHabitatEmergencyDecision)
@@ -151,6 +183,7 @@ public partial class MainWindow : Window
         ViewModel.ShowAdvanceSummary(completedDays, previousEventCount, paused: false);
     }
 
+    // The emergency dialog loops until the situation is resolved or the user pauses
     private async Task<bool> ResolvePendingHabitatEmergencyAsync()
     {
         while (ViewModel.PendingHabitatEmergency is { } emergency)
@@ -181,15 +214,18 @@ public partial class MainWindow : Window
         return true;
     }
 
+    // New events are displayed one by one after each action
     private async Task ShowNewEventDialogsAsync(int previousEventCount)
     {
         var newEvents = ViewModel.GetNewEventRows(previousEventCount);
         foreach (var eventRow in newEvents)
+            // Events are shown one by one instead of in a grouped popup
             await EventDialog.ShowAsync(this, eventRow);
 
         await ShowPendingNewbornNamingDialogsAsync();
     }
 
+    // Newborn naming happens after the event popups
     private async Task ShowPendingNewbornNamingDialogsAsync()
     {
         while (ViewModel.PendingNewbornAwaitingName is { } newborn)
@@ -209,6 +245,7 @@ public partial class MainWindow : Window
         }
     }
 
+    // Cash errors are shown through a dedicated confirmation popup
     private async Task ShowPendingCashPopupAsync()
     {
         if (!ViewModel.TryTakePendingCashPopupMessage(out var message))

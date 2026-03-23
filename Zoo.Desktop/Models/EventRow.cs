@@ -4,8 +4,14 @@ using Zoo.Domain.Events;
 
 namespace Zoo.Desktop.Models;
 
+/// <summary>
+/// View model row used to display one event
+/// </summary>
 public sealed class EventRow
 {
+    /// <summary>
+    /// Creates a desktop row for one event
+    /// </summary>
     public EventRow(ZooEvent zooEvent)
     {
         ZooEvent = zooEvent;
@@ -16,6 +22,8 @@ public sealed class EventRow
     public string Title => Humanize(ZooEvent.Type.ToString());
     public string DateLabel => $"Day {ZooEvent.Day:00}/{ZooEvent.Month:00}/Y{ZooEvent.Year} | Turn {ZooEvent.TurnNumber}";
     public string Description => ZooEvent.Description;
+
+    // Event colors roughly separate danger, warning, success and neutral actions
     public IBrush AccentBrush => ZooEvent.Type switch
     {
         ZooEventType.Fire or
@@ -42,6 +50,7 @@ public sealed class EventRow
         _ => UiBrushes.Warning
     };
 
+    // Event type names are split into readable words for the UI
     private static string Humanize(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
