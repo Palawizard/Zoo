@@ -7,6 +7,9 @@ namespace Zoo.Application.Simulation;
 
 public sealed partial class ZooSimulationService
 {
+    /// <summary>
+    /// Applies the monthly exceptional events on the first day of the month
+    /// </summary>
     public void TryApplyMonthlyExceptionalEvents(int dayOfMonth)
     {
         var daysInMonth = GetDaysInMonth(CurrentMonth);
@@ -23,12 +26,17 @@ public sealed partial class ZooSimulationService
         TryApplyMonthlySpoiledMeat();
     }
 
+    /// <summary>
+    /// Feeds all living animals and advances their daily state
+    /// </summary>
     public void ProcessDailyFeeding()
     {
         foreach (var animal in _animals.Where(current => current.IsAlive))
         {
             var requiredKg = animal.GetDailyFoodNeedKg();
             var providedKg = ConsumeFromStock(animal.Profile.FoodType, requiredKg);
+
+            // If stock is missing, the animal receives only a partial ration or nothing
             animal.ApplyDailyFeeding(providedKg);
 
             var dailyOutcome = animal.AdvanceOneDay();
@@ -43,6 +51,9 @@ public sealed partial class ZooSimulationService
         }
     }
 
+    /// <summary>
+    /// Advances the simulation by one turn without interruptions
+    /// </summary>
     public void NextTurn()
     {
         if (PendingHabitatEmergency is not null || _pendingTurnAwaitingCompletion)
@@ -63,6 +74,9 @@ public sealed partial class ZooSimulationService
         AddTurnAdvancedEvent();
     }
 
+    /// <summary>
+    /// Advances one turn and stops when a habitat emergency needs a decision
+    /// </summary>
     public TurnAdvanceState AdvanceTurnWithInterruptions()
     {
         if (!_interactiveHabitatEmergencies)
@@ -97,6 +111,7 @@ public sealed partial class ZooSimulationService
         return TurnAdvanceState.Completed;
     }
 
+    // Fire destroys a random habitat when the event triggers
     private void TryApplyMonthlyFire()
     {
         if (!IsEventTriggered(0.01m) || _habitats.Count == 0)
@@ -109,6 +124,7 @@ public sealed partial class ZooSimulationService
             $"A fire destroyed one {habitat.Species} habitat.");
     }
 
+    // Theft removes one random living animal from the zoo
     private void TryApplyMonthlyTheft()
     {
         if (!IsEventTriggered(0.01m))
@@ -126,6 +142,7 @@ public sealed partial class ZooSimulationService
             $"{victim.Name} was stolen from the zoo.");
     }
 
+    // Pests destroy part of the seed stock
     private void TryApplyMonthlyPests()
     {
         if (!IsEventTriggered(0.20m) || SeedsStockKg <= 0m)
@@ -140,6 +157,7 @@ public sealed partial class ZooSimulationService
             $"Pests destroyed {lostKg:0.##} kg of seeds.");
     }
 
+    // Spoilage destroys part of the meat stock
     private void TryApplyMonthlySpoiledMeat()
     {
         if (!IsEventTriggered(0.10m) || MeatStockKg <= 0m)
@@ -154,6 +172,7 @@ public sealed partial class ZooSimulationService
             $"{lostKg:0.##} kg of meat spoiled.");
     }
 
+    // Only one daily outcome is logged per animal
     private void LogDailyOutcome(ZooAnimal animal, AnimalDailyOutcome dailyOutcome)
     {
         if (dailyOutcome.DiedOfOldAge)
@@ -180,6 +199,7 @@ public sealed partial class ZooSimulationService
         }
     }
 
+    // The daily turn always follows the same order
     private void ProcessDailyTurn()
     {
         ProcessDailyFeeding();
@@ -188,12 +208,14 @@ public sealed partial class ZooSimulationService
         TryStartPregnancies();
     }
 
+    // Non-interactive mode runs the full monthly cycle at once
     private void ProcessMonthlyTurn()
     {
         TryApplyMonthlyExceptionalEvents(CurrentDayOfMonth);
         CompleteMonthlyTurn();
     }
 
+    // Interactive mode may pause after a habitat destruction
     private bool ProcessMonthlyTurnWithPossiblePause()
     {
         TryApplyMonthlyExceptionalEvents(CurrentDayOfMonth);
@@ -204,6 +226,7 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    // The monthly cycle groups cooldowns, egg laying, habitats and visitors
     private void CompleteMonthlyTurn()
     {
         ProgressMonthlyReproductionCooldowns();
@@ -212,12 +235,14 @@ public sealed partial class ZooSimulationService
         CollectMonthlyVisitorRevenue();
     }
 
+    // Each habitat resolves its own monthly losses and sickness
     private void ProcessMonthlyHabitatOutcomes()
     {
         foreach (var habitat in _habitats)
         {
             var monthlyOutcome = habitat.ProcessMonth(Random.Shared);
 
+            // Each category is logged separately so the event list stays explicit
             foreach (var animal in monthlyOutcome.NewlySickAnimals)
             {
                 AddEvent(
@@ -241,21 +266,26 @@ public sealed partial class ZooSimulationService
         }
     }
 
+    // Monthly cooldowns only progress for living animals
     private void ProgressMonthlyReproductionCooldowns()
     {
         foreach (var animal in _animals.Where(current => current.IsAlive))
             animal.ProgressReproductionOneMonth();
     }
 
+    // This just forwards the projected season state
     private decimal CollectMonthlyVisitorRevenue()
     {
         return CollectVisitorRevenue(IsHighSeason);
     }
 
+    // Protected species generate a yearly subsidy
     private void ProcessYearlyTurn()
     {
         var tigerCount = _animals.Count(animal => animal.IsAlive && animal.Species == SpeciesType.Tiger);
         var eagleCount = _animals.Count(animal => animal.IsAlive && animal.Species == SpeciesType.Eagle);
+
+        // Tigers and eagles are the protected species that trigger subsidies
         var subsidy = (tigerCount * 43800m) + (eagleCount * 2190m);
 
         if (subsidy <= 0m)
@@ -267,6 +297,7 @@ public sealed partial class ZooSimulationService
             $"Protected species subsidy added {subsidy:0.##}€.");
     }
 
+    // The calendar advances day first, then month, then year
     private void AdvanceCalendar()
     {
         var daysInMonth = GetDaysInMonth(CurrentMonth);
@@ -287,6 +318,7 @@ public sealed partial class ZooSimulationService
         CurrentYear++;
     }
 
+    // Turn advanced is logged in one place for consistency
     private void AddTurnAdvancedEvent()
     {
         AddEvent(
@@ -294,6 +326,7 @@ public sealed partial class ZooSimulationService
             $"Turn {TurnNumber} completed. Current date is {CurrentDayOfMonth}/{CurrentMonth}/{CurrentYear}.");
     }
 
+    // The calendar uses a fixed 28-day February
     private static int GetDaysInMonth(int month)
     {
         return month switch
@@ -314,6 +347,7 @@ public sealed partial class ZooSimulationService
         };
     }
 
+    // A percentage reduction is clamped through simple guards
     private static decimal ReduceByPercent(decimal value, decimal percent)
     {
         if (value <= 0m)
@@ -326,6 +360,7 @@ public sealed partial class ZooSimulationService
         return value * (1m - percent);
     }
 
+    // Generic probability helper used by exceptional events
     private static bool IsEventTriggered(decimal probability)
     {
         if (probability <= 0m)
@@ -333,6 +368,7 @@ public sealed partial class ZooSimulationService
         if (probability >= 1m)
             return true;
 
+        // The helper is shared by all random monthly events
         return (decimal)Random.Shared.NextDouble() < probability;
     }
 }

@@ -6,8 +6,12 @@ using Zoo.Desktop.Models;
 
 namespace Zoo.Desktop.Dialogs;
 
+/// <summary>
+/// Dialog used to display one event in detail
+/// </summary>
 public sealed class EventDialog : Window
 {
+    // The constructor stays private because the dialog is opened through ShowAsync
     private EventDialog(EventRow eventRow)
     {
         Title = eventRow.Title;
@@ -73,6 +77,9 @@ public sealed class EventDialog : Window
         };
     }
 
+    /// <summary>
+    /// Shows the event dialog
+    /// </summary>
     public static async Task ShowAsync(Window owner, EventRow eventRow)
     {
         var dialog = new EventDialog(eventRow);

@@ -12,6 +12,9 @@ namespace Zoo.Desktop.ViewModels;
 
 public sealed partial class MainWindowViewModel
 {
+    /// <summary>
+    /// Returns the new events created after a given event count
+    /// </summary>
     public IReadOnlyList<EventRow> GetNewEventRows(int previousEventCount)
     {
         if (previousEventCount < 0)
@@ -24,6 +27,9 @@ public sealed partial class MainWindowViewModel
             .ToList();
     }
 
+    /// <summary>
+    /// Advances the simulation for several days
+    /// </summary>
     public void AdvanceTurns(int? overrideDays = null)
     {
         if (!TryReadPositiveInt(overrideDays?.ToString() ?? AdvanceDaysInput, "Advance days", out var days))
@@ -32,6 +38,7 @@ public sealed partial class MainWindowViewModel
         var previousEventCount = _simulation.Events.Count;
         var completedDays = 0;
 
+        // The loop can stop early if a habitat emergency interrupts the simulation
         for (; completedDays < days; completedDays++)
         {
             var state = _simulation.AdvanceTurnWithInterruptions();
@@ -49,11 +56,17 @@ public sealed partial class MainWindowViewModel
         SetMessage($"{completedDays} day(s) simulated. {newEvents} new event(s) logged.", isError: false);
     }
 
+    /// <summary>
+    /// Reads and validates the requested number of days to advance
+    /// </summary>
     public bool TryGetAdvanceDays(int? overrideDays, out int days)
     {
         return TryReadPositiveInt(overrideDays?.ToString() ?? AdvanceDaysInput, "Advance days", out days);
     }
 
+    /// <summary>
+    /// Advances the simulation by one turn
+    /// </summary>
     public TurnAdvanceState AdvanceSingleTurn()
     {
         var state = _simulation.AdvanceTurnWithInterruptions();
@@ -68,6 +81,9 @@ public sealed partial class MainWindowViewModel
         return TurnAdvanceState.Completed;
     }
 
+    /// <summary>
+    /// Resolves the current habitat emergency from the UI
+    /// </summary>
     public bool TryResolvePendingHabitatEmergency(HabitatEmergencyResolution resolution, out string failureReason)
     {
         var success = _simulation.TryResolvePendingHabitatEmergency(resolution, out failureReason);
@@ -84,6 +100,9 @@ public sealed partial class MainWindowViewModel
         return false;
     }
 
+    /// <summary>
+    /// Finalizes the next newborn name from the UI
+    /// </summary>
     public bool TryFinalizePendingNewbornNaming(string? chosenName, out string failureReason)
     {
         var success = _simulation.TryFinalizeNextNewbornNaming(chosenName, out var newborn, out failureReason);
@@ -99,6 +118,9 @@ public sealed partial class MainWindowViewModel
         return false;
     }
 
+    /// <summary>
+    /// Shows the final advance summary in the status area
+    /// </summary>
     public void ShowAdvanceSummary(int completedDays, int previousEventCount, bool paused)
     {
         var newEvents = _simulation.Events.Count - previousEventCount;
@@ -108,11 +130,17 @@ public sealed partial class MainWindowViewModel
         SetMessage(message, isError: paused);
     }
 
+    /// <summary>
+    /// Sets a status message from the UI layer
+    /// </summary>
     public void ShowStatus(string message, bool isError = false)
     {
         SetMessage(message, isError);
     }
 
+    /// <summary>
+    /// Returns the confirmation message for buying a habitat
+    /// </summary>
     public string? GetBuyHabitatConfirmationMessage()
     {
         var habitat = HabitatFactory.Create(SelectedHabitatSpecies);
@@ -125,6 +153,9 @@ public sealed partial class MainWindowViewModel
         return $"Buy a {SelectedHabitatSpecies} habitat for {habitat.BuyPrice:0.##} EUR?";
     }
 
+    /// <summary>
+    /// Returns the confirmation message for buying food
+    /// </summary>
     public string? GetBuyFoodConfirmationMessage()
     {
         if (!TryReadPositiveDecimal(FoodKgInput, "Food quantity", out var kilograms))
@@ -142,6 +173,9 @@ public sealed partial class MainWindowViewModel
         return $"Buy {kilograms:0.##} kg of {label} for {cost:0.##} EUR?";
     }
 
+    /// <summary>
+    /// Returns the confirmation message for buying an animal
+    /// </summary>
     public string? GetBuyAnimalConfirmationMessage()
     {
         var name = AnimalNameInput.Trim();
@@ -175,6 +209,7 @@ public sealed partial class MainWindowViewModel
             return null;
         }
 
+        // When no habitat is free, the confirmation includes the forced habitat purchase
         var habitatCost = HabitatFactory.Create(SelectedAnimalSpecies).BuyPrice;
         if (_simulation.Cash < cost + habitatCost)
         {
@@ -185,6 +220,9 @@ public sealed partial class MainWindowViewModel
         return $"Buy {name} ({SelectedAnimalSpecies}, {SelectedAnimalSex}, {ageLabel}) for {cost:0.##} EUR and auto-buy one habitat for {habitatCost:0.##} EUR?";
     }
 
+    /// <summary>
+    /// Returns the confirmation message for selling the selected animal
+    /// </summary>
     public string? GetSellAnimalConfirmationMessage()
     {
         if (SelectedAnimalRow is null)
@@ -200,6 +238,9 @@ public sealed partial class MainWindowViewModel
             : $"Sell {animal.Name}'s remains for {revenue:0.##} EUR?";
     }
 
+    /// <summary>
+    /// Returns the confirmation message for selling the selected habitat
+    /// </summary>
     public string? GetSellHabitatConfirmationMessage()
     {
         if (SelectedHabitatRow is null)
@@ -218,6 +259,9 @@ public sealed partial class MainWindowViewModel
         return $"Sell the {habitat.Species} habitat for {habitat.SellPrice:0.##} EUR?";
     }
 
+    /// <summary>
+    /// Buys a habitat from the UI state
+    /// </summary>
     public void BuyHabitat()
     {
         var selectedAnimalId = SelectedAnimalRow?.Animal.Id;
@@ -240,6 +284,9 @@ public sealed partial class MainWindowViewModel
         SetCashError($"Not enough cash to buy a {SelectedHabitatSpecies} habitat.");
     }
 
+    /// <summary>
+    /// Buys food from the UI state
+    /// </summary>
     public void BuyFood()
     {
         if (!TryReadPositiveDecimal(FoodKgInput, "Food quantity", out var kilograms))
@@ -262,6 +309,9 @@ public sealed partial class MainWindowViewModel
         SetCashError("Food purchase denied because the zoo does not have enough cash.");
     }
 
+    /// <summary>
+    /// Buys an animal from the UI state
+    /// </summary>
     public void BuyAnimal()
     {
         var name = AnimalNameInput.Trim();
@@ -298,6 +348,7 @@ public sealed partial class MainWindowViewModel
                 return;
             }
 
+            // The habitat reference is looked up again because the collection just changed
             habitat = SelectHabitatForSpecies(SelectedAnimalSpecies);
             if (habitat is null)
             {
@@ -327,12 +378,16 @@ public sealed partial class MainWindowViewModel
         }
         catch (Exception exception)
         {
+            // The animal purchase is rolled back if habitat placement fails
             _simulation.SellAnimal(animal);
             RefreshSnapshot();
             SetMessage($"Animal could not be placed into a habitat: {exception.Message}", isError: true);
         }
     }
 
+    /// <summary>
+    /// Sells the selected animal
+    /// </summary>
     public void SellSelectedAnimal()
     {
         if (SelectedAnimalRow is null)
@@ -353,6 +408,9 @@ public sealed partial class MainWindowViewModel
         SetMessage($"The sale of {animalName} failed.", isError: true);
     }
 
+    /// <summary>
+    /// Sells the selected habitat
+    /// </summary>
     public void SellSelectedHabitat()
     {
         if (SelectedHabitatRow is null)
@@ -378,6 +436,9 @@ public sealed partial class MainWindowViewModel
         SetMessage($"The sale of the {habitat.Species} habitat failed.", isError: true);
     }
 
+    /// <summary>
+    /// Returns the pending cash popup message once
+    /// </summary>
     public bool TryTakePendingCashPopupMessage(out string message)
     {
         if (string.IsNullOrWhiteSpace(_pendingCashPopupMessage))
@@ -391,6 +452,7 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
+    // The UI picks the habitat with the most free space
     private Habitat? SelectHabitatForSpecies(SpeciesType species)
     {
         return _simulation.Habitats
@@ -399,6 +461,7 @@ public sealed partial class MainWindowViewModel
             .FirstOrDefault();
     }
 
+    // Inputs are cleared after a successful animal purchase
     private void ResetAnimalInputs()
     {
         AnimalNameInput = string.Empty;
@@ -407,6 +470,7 @@ public sealed partial class MainWindowViewModel
         AnimalAgeDaysInput = string.Empty;
     }
 
+    // The generic status message also clears the cash popup queue
     private void SetMessage(string message, bool isError)
     {
         StatusMessage = message;
@@ -415,6 +479,7 @@ public sealed partial class MainWindowViewModel
         _pendingCashPopupMessage = null;
     }
 
+    // Cash errors are also stored for the dedicated popup
     private void SetCashError(string message)
     {
         StatusMessage = message;

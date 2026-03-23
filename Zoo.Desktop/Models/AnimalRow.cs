@@ -5,8 +5,14 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Desktop.Models;
 
+/// <summary>
+/// View model row used to display one animal in the desktop UI
+/// </summary>
 public sealed class AnimalRow
 {
+    /// <summary>
+    /// Creates a desktop row for one animal
+    /// </summary>
     public AnimalRow(ZooAnimal animal, string habitatLabel, string reproductionNote)
     {
         Animal = animal;
@@ -31,8 +37,10 @@ public sealed class AnimalRow
                     ? "Hungry"
                     : Animal.IsSick
                         ? "Sick"
-                        : "Stable"
+                    : "Stable"
         : "Dead";
+
+    // Marker and status use slightly different rules because gestation is not a health issue
     public string Status => Animal.IsAlive ? Animal.Health.ToString() : "Dead";
     public string FoodNeed => $"{Animal.GetDailyFoodNeedKg():0.##} kg/day";
     public IBrush MarkerBrush => Animal.IsAlive

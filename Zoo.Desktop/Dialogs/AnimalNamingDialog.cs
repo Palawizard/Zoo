@@ -6,8 +6,12 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Desktop.Dialogs;
 
+/// <summary>
+/// Dialog used to rename a newborn
+/// </summary>
 public sealed class AnimalNamingDialog : Window
 {
+    // The constructor stays private because the dialog is created through ShowAsync
     private AnimalNamingDialog(ZooAnimal newborn)
     {
         Title = "Name newborn";
@@ -84,6 +88,9 @@ public sealed class AnimalNamingDialog : Window
         };
     }
 
+    /// <summary>
+    /// Shows the newborn naming dialog
+    /// </summary>
     public static async Task<string?> ShowAsync(Window owner, ZooAnimal newborn)
     {
         var dialog = new AnimalNamingDialog(newborn);

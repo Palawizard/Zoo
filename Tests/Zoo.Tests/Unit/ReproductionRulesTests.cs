@@ -3,8 +3,14 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Tests.Unit;
 
+/// <summary>
+/// Unit tests for reproduction rules
+/// </summary>
 public sealed class ReproductionRulesTests
 {
+    /// <summary>
+    /// Checks that adult arrival cooldown blocks then unlocks gestation
+    /// </summary>
     [Fact]
     public void AdultArrivalBlockPreventsThenAllowsGestation()
     {
@@ -20,6 +26,9 @@ public sealed class ReproductionRulesTests
         Assert.True(tigress.CanStartGestationToday());
     }
 
+    /// <summary>
+    /// Checks that hunger interrupts an ongoing gestation
+    /// </summary>
     [Fact]
     public void HungryFemaleLosesFetus()
     {
@@ -37,6 +46,9 @@ public sealed class ReproductionRulesTests
         Assert.Equal(0, bornCount);
     }
 
+    /// <summary>
+    /// Checks that egg-laying species cannot start standard gestation
+    /// </summary>
     [Fact]
     public void EggLayerCannotStartGestation()
     {
@@ -47,6 +59,9 @@ public sealed class ReproductionRulesTests
         Assert.False(eagle.CanStartGestationToday());
     }
 
+    /// <summary>
+    /// Checks that tiger pregnancies only start when future litter space exists
+    /// </summary>
     [Fact]
     public void TigerPregnancyRequiresEnoughHabitatSpaceForFutureLitter()
     {
@@ -75,6 +90,9 @@ public sealed class ReproductionRulesTests
         Assert.True(female.IsGestating);
     }
 
+    /// <summary>
+    /// Checks that one male eagle cannot be paired with two females
+    /// </summary>
     [Fact]
     public void MonogamousEaglesDoNotLetOneMalePairWithTwoFemales()
     {
@@ -102,6 +120,9 @@ public sealed class ReproductionRulesTests
         Assert.Equal(1, femalesWithEggs);
     }
 
+    /// <summary>
+    /// Checks that hens need enough habitat space for their egg batch
+    /// </summary>
     [Fact]
     public void HensNeedEnoughHabitatSpaceForTheirMonthlyEggBatch()
     {
@@ -129,6 +150,9 @@ public sealed class ReproductionRulesTests
         Assert.True(hen.PendingEggs >= 16);
     }
 
+    /// <summary>
+    /// Checks that a tigress waits twenty months between litters
+    /// </summary>
     [Fact]
     public void TigressMustWaitTwentyMonthsBetweenLitters()
     {
@@ -159,6 +183,9 @@ public sealed class ReproductionRulesTests
         Assert.True(tigress.CanStartGestationToday());
     }
 
+    /// <summary>
+    /// Checks that newborns can be renamed one after another
+    /// </summary>
     [Fact]
     public void NewbornsCanBeNamedOneByOneAfterBirth()
     {
@@ -202,6 +229,7 @@ public sealed class ReproductionRulesTests
         Assert.True(renamedCount >= 1);
     }
 
+    // Arrival cooldown is removed by simulating thirty days
     private static void UnlockArrivalBlock(params ZooAnimal[] animals)
     {
         foreach (var animal in animals)

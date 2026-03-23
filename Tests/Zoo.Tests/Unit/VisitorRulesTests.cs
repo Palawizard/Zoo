@@ -3,8 +3,14 @@ using Zoo.Domain.Visitors;
 
 namespace Zoo.Tests.Unit;
 
+/// <summary>
+/// Unit tests for visitor revenue rules
+/// </summary>
 public sealed class VisitorRulesTests
 {
+    /// <summary>
+    /// Checks that visitor variation stays within the configured range
+    /// </summary>
     [Fact]
     public void VisitorRevenueAppliesMonthlyVariationWithinTwentyPercentRange()
     {

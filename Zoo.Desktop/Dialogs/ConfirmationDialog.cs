@@ -5,8 +5,12 @@ using Avalonia.Media;
 
 namespace Zoo.Desktop.Dialogs;
 
+/// <summary>
+/// Generic confirmation dialog for desktop actions
+/// </summary>
 public sealed class ConfirmationDialog : Window
 {
+    // The constructor stays private because the dialog is opened through ShowAsync
     private ConfirmationDialog(
         string title,
         string message,
@@ -98,6 +102,9 @@ public sealed class ConfirmationDialog : Window
         };
     }
 
+    /// <summary>
+    /// Shows a confirmation dialog and returns the user choice
+    /// </summary>
     public static async Task<bool> ShowAsync(
         Window owner,
         string title,

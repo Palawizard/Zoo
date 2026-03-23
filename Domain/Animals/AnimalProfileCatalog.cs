@@ -1,5 +1,9 @@
+/// <summary>
+/// Central catalog for animal profiles
+/// </summary>
 public static class AnimalProfileCatalog
 {
+    // Each species and sex pair has one profile used everywhere in the simulation
     private static readonly Dictionary<(SpeciesType species, SexType sex), AnimalProfile> Profiles = new()
     {
         {
@@ -130,6 +134,9 @@ public static class AnimalProfileCatalog
         }
     };
 
+    /// <summary>
+    /// Returns the profile for the requested species and sex
+    /// </summary>
     public static AnimalProfile Get(SpeciesType species, SexType sex)
     {
         if (Profiles.TryGetValue((species, sex), out var profile))

@@ -5,8 +5,14 @@ using Zoo.Domain.Habitats;
 
 namespace Zoo.Tests.Unit;
 
+/// <summary>
+/// Unit tests for economy and habitat emergency rules
+/// </summary>
 public sealed class EconomyRulesTests
 {
+    /// <summary>
+    /// Checks that buying food updates cash, stock and the ledger
+    /// </summary>
     [Fact]
     public void BuyFoodConsumesCashAddsStockAndLedgerEntry()
     {
@@ -23,6 +29,9 @@ public sealed class EconomyRulesTests
         Assert.Equal(50m, simulation.Ledger.Transactions[^1].BalanceAfter);
     }
 
+    /// <summary>
+    /// Checks that habitat purchase fails when the zoo is too poor
+    /// </summary>
     [Fact]
     public void BuyHabitatFailsWhenCashIsInsufficient()
     {
@@ -36,6 +45,9 @@ public sealed class EconomyRulesTests
         Assert.Single(simulation.Ledger.Transactions);
     }
 
+    /// <summary>
+    /// Checks that eagle habitats use the configured sell price
+    /// </summary>
     [Fact]
     public void EagleHabitatUsesSpecifiedSellPrice()
     {
@@ -44,6 +56,9 @@ public sealed class EconomyRulesTests
         Assert.Equal(500m, habitat.SellPrice);
     }
 
+    /// <summary>
+    /// Checks that interactive habitat destruction creates a pending decision
+    /// </summary>
     [Fact]
     public void InteractiveHabitatDestructionCreatesPendingEmergency()
     {
@@ -64,6 +79,9 @@ public sealed class EconomyRulesTests
         Assert.Empty(simulation.Habitats);
     }
 
+    /// <summary>
+    /// Checks that displaced animals can be rehoused after buying a replacement habitat
+    /// </summary>
     [Fact]
     public void ResolvingPendingEmergencyCanRehouseAnimalsByBuyingReplacementHabitat()
     {
@@ -86,6 +104,9 @@ public sealed class EconomyRulesTests
         Assert.Contains(tiger, simulation.Habitats[0].Animals);
     }
 
+    /// <summary>
+    /// Checks that dead animals sell for a reduced price
+    /// </summary>
     [Fact]
     public void DeadAnimalsSellForADeepDiscount()
     {
@@ -104,6 +125,9 @@ public sealed class EconomyRulesTests
         Assert.Contains(simulation.Events, zooEvent => zooEvent.Type == Domain.Events.ZooEventType.AnimalSold);
     }
 
+    /// <summary>
+    /// Checks that a dead animal still occupies its habitat slot until it is sold
+    /// </summary>
     [Fact]
     public void DeadAnimalsKeepHabitatSlotsUntilTheyAreSold()
     {

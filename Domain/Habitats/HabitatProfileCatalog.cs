@@ -1,7 +1,11 @@
 namespace Zoo.Domain.Habitats;
 
+/// <summary>
+/// Central catalog for habitat profiles
+/// </summary>
 public static class HabitatProfileCatalog
 {
+    // Each species has one shared habitat profile
     private static readonly Dictionary<SpeciesType, HabitatProfile> Profiles = new()
     {
         {
@@ -36,6 +40,9 @@ public static class HabitatProfileCatalog
         }
     };
 
+    /// <summary>
+    /// Returns the profile for the requested species
+    /// </summary>
     public static HabitatProfile Get(SpeciesType species)
     {
         if (Profiles.TryGetValue(species, out var profile))

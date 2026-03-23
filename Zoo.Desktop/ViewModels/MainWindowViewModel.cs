@@ -10,6 +10,9 @@ using Zoo.Domain.Finance;
 
 namespace Zoo.Desktop.ViewModels;
 
+/// <summary>
+/// Main desktop view model for the zoo dashboard
+/// </summary>
 public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly ZooSimulationService _simulation = new(cash: 80000m, interactiveHabitatEmergencies: true);
@@ -56,6 +59,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private bool _isRefreshingSnapshot;
     private string? _pendingCashPopupMessage;
 
+    /// <summary>
+    /// Creates the main window view model
+    /// </summary>
     public MainWindowViewModel()
     {
         RefreshSnapshot();

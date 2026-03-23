@@ -2,6 +2,9 @@ using Avalonia.Media;
 
 namespace Zoo.Desktop.Styling;
 
+/// <summary>
+/// Central palette used by the desktop UI
+/// </summary>
 internal static class UiBrushes
 {
     public static readonly IBrush Success = Brush.Parse("#2EC4B6");

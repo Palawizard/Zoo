@@ -2,6 +2,9 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Domain.Finance;
 
+/// <summary>
+/// Provides buy and sell prices for animals
+/// </summary>
 public sealed class AnimalMarket
 {
     private const int Age6MonthsDays = 180;
@@ -62,20 +65,36 @@ public sealed class AnimalMarket
         }
     };
 
+    /// <summary>
+    /// Stores a market price point for one age threshold
+    /// </summary>
     private sealed record PricePoint(int AgeDays, decimal BuyPrice, decimal SellPrice);
 
+    /// <summary>
+    /// Returns the male buy price kept for backward compatibility
+    /// </summary>
     public decimal BuyAnimalPrice(SpeciesType species, int ageDays)
         => GetPrice(species, SexType.Male, ageDays, isBuy: true);
 
+    /// <summary>
+    /// Returns the male sell price kept for backward compatibility
+    /// </summary>
     public decimal SellAnimalPrice(SpeciesType species, int ageDays)
         => GetPrice(species, SexType.Male, ageDays, isBuy: false);
 
+    /// <summary>
+    /// Returns the buy price for one animal
+    /// </summary>
     public decimal BuyAnimalPrice(SpeciesType species, SexType sex, int ageDays)
         => GetPrice(species, sex, ageDays, isBuy: true);
 
+    /// <summary>
+    /// Returns the sell price for one animal
+    /// </summary>
     public decimal SellAnimalPrice(SpeciesType species, SexType sex, int ageDays)
         => GetPrice(species, sex, ageDays, isBuy: false);
 
+    // Prices are interpolated between age points to avoid hard jumps
     private static decimal GetPrice(SpeciesType species, SexType sex, int ageDays, bool isBuy)
     {
         if (ageDays < 0)
@@ -99,6 +118,7 @@ public sealed class AnimalMarket
 
             if (ageDays < right.AgeDays)
             {
+                // The age sits between two catalog points, so the price is interpolated
                 var ratio = (ageDays - left.AgeDays) / (decimal)(right.AgeDays - left.AgeDays);
                 var leftPrice = isBuy ? left.BuyPrice : left.SellPrice;
                 var rightPrice = isBuy ? right.BuyPrice : right.SellPrice;

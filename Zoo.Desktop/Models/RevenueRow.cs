@@ -4,8 +4,14 @@ using Zoo.Domain.Animals;
 
 namespace Zoo.Desktop.Models;
 
+/// <summary>
+/// View model row used to display projected revenue for one species
+/// </summary>
 public sealed class RevenueRow
 {
+    /// <summary>
+    /// Creates a revenue row
+    /// </summary>
     public RevenueRow(SpeciesType species, decimal projectedRevenue, int exposedAnimals)
     {
         Species = species;

@@ -9,12 +9,16 @@ namespace Zoo.Application.Simulation;
 
 public sealed partial class ZooSimulationService
 {
+    /// <summary>
+    /// Destroys a habitat and creates a pending emergency when needed
+    /// </summary>
     public void DestroyHabitat(Habitat habitat, ZooEventType causeType, string description)
     {
         ArgumentNullException.ThrowIfNull(habitat);
         if (!_habitats.Remove(habitat))
             return;
 
+        // Dead animals are ignored here because the emergency concerns living ones
         var displacedAnimals = habitat.Animals
             .OfType<ZooAnimal>()
             .Where(animal => animal.IsAlive)
@@ -43,6 +47,9 @@ public sealed partial class ZooSimulationService
             habitat.BuyPrice);
     }
 
+    /// <summary>
+    /// Resolves the current habitat emergency
+    /// </summary>
     public bool TryResolvePendingHabitatEmergency(HabitatEmergencyResolution resolution, out string failureReason)
     {
         failureReason = string.Empty;
@@ -87,6 +94,7 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    // A new habitat is bought only if the existing capacity is not enough
     private bool TryRehouseDisplacedAnimals(PendingHabitatEmergency pendingEmergency, out string failureReason)
     {
         var availableSlots = GetAvailableHabitatSlots(pendingEmergency.Species);
@@ -106,6 +114,7 @@ public sealed partial class ZooSimulationService
             if (TryPlaceAnimalInHabitat(animal))
                 continue;
 
+            // This should stay rare because capacity is checked before the loop
             failureReason = $"No free {pendingEmergency.Species} habitat slot is available for {animal.Name}.";
             return false;
         }
@@ -117,6 +126,7 @@ public sealed partial class ZooSimulationService
         return true;
     }
 
+    // Non-rehoused animals are killed but kept in the animal list
     private void EuthanizeDisplacedAnimals(SpeciesType species, IReadOnlyList<ZooAnimal> displacedAnimals)
     {
         var euthanizedCount = 0;
