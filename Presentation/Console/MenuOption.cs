@@ -1,4 +1,4 @@
-namespace Zoo.Presentation.ConsoleApp;
+namespace Zoo.Presentation.Console;
 
 /// <summary>
 /// Lists the console menu actions

@@ -1,3 +1,7 @@
+using Zoo.Domain.Feeding;
+
+namespace Zoo.Domain.Animals;
+
 /// <summary>
 /// Central catalog for animal profiles
 /// </summary>

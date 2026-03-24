@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Zoo.Domain.Animals;
 
 namespace Zoo.Domain.Reproduction;
@@ -10,14 +7,12 @@ namespace Zoo.Domain.Reproduction;
 /// </summary>
 public sealed class ReproductionService
 {
-    private readonly ReproductionRules _rules;
-
     /// <summary>
     /// Creates the reproduction service with optional custom rules
     /// </summary>
     public ReproductionService(ReproductionRules? rules = null)
     {
-        _rules = rules ?? new ReproductionRules();
+        _ = rules ?? new ReproductionRules();
     }
 
     /// <summary>
@@ -151,15 +146,15 @@ public sealed class ReproductionService
     // Egg-laying species can either have a fixed month or a yearly quota
     private static int GetEggCountForMonth(Animal female, int month)
     {
-        if (female.Profile.EggLayingMonth is int layingMonth &&
+        if (female.Profile.EggLayingMonth is { } layingMonth &&
             layingMonth == month &&
-            female.Profile.LitterSize is int litterSize &&
+            female.Profile.LitterSize is { } litterSize &&
             litterSize > 0)
         {
             return litterSize;
         }
 
-        if (female.Profile.EggsPerYear is int eggsPerYear && eggsPerYear > 0)
+        if (female.Profile.EggsPerYear is { } eggsPerYear && eggsPerYear > 0)
         {
             // This legacy service spreads eggs as a rounded monthly average
             return Math.Max(1, (int)Math.Round(eggsPerYear / 12.0, MidpointRounding.AwayFromZero));

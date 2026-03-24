@@ -3,7 +3,7 @@ using Zoo.Domain.Animals;
 using Zoo.Domain.Feeding;
 using Zoo.Domain.Habitats;
 
-namespace Zoo.Presentation.ConsoleApp;
+namespace Zoo.Presentation.Console;
 
 /// <summary>
 /// Runs the console version of the zoo application
@@ -65,12 +65,12 @@ public sealed class ZooConsoleApp
                     running = false;
                     break;
                 default:
-                    Console.WriteLine("Invalid choice.");
+                    global::System.Console.WriteLine("Invalid choice.");
                     break;
             }
         }
 
-        Console.WriteLine("Goodbye!");
+        global::System.Console.WriteLine("Goodbye!");
     }
 
     // One turn is advanced first, then only the new events are printed
@@ -82,10 +82,10 @@ public sealed class ZooConsoleApp
 
         var newEvents = _simulation.Events.Skip(previousEventCount).ToList();
 
-        Console.WriteLine();
-        Console.WriteLine("--- End of turn ---");
-        Console.WriteLine($"Turn { _simulation.TurnNumber } | Date { _simulation.CurrentDayOfMonth:00}/{ _simulation.CurrentMonth:00}/Year { _simulation.CurrentYear }");
-        Console.WriteLine($"Season: {( _simulation.IsHighSeason ? "High" : "Low" )}");
+        global::System.Console.WriteLine();
+        global::System.Console.WriteLine("--- End of turn ---");
+        global::System.Console.WriteLine($"Turn {_simulation.TurnNumber} | Date {_simulation.CurrentDayOfMonth:00}/{_simulation.CurrentMonth:00}/Year {_simulation.CurrentYear}");
+        global::System.Console.WriteLine($"Season: {(_simulation.IsHighSeason ? "High" : "Low")}");
 
         _printer.PrintEvents(newEvents);
     }
@@ -97,9 +97,9 @@ public sealed class ZooConsoleApp
         var kg = _input.ReadDecimal("Quantity in kg:", 0m, 10000m);
 
         if (_simulation.BuyFood(foodType, kg))
-            Console.WriteLine("Purchase successful.");
+            global::System.Console.WriteLine("Purchase successful.");
         else
-            Console.WriteLine("Purchase denied: not enough cash.");
+            global::System.Console.WriteLine("Purchase denied: not enough cash.");
     }
 
     // Adding an animal requires both a purchase and a valid habitat placement
@@ -113,7 +113,7 @@ public sealed class ZooConsoleApp
         var targetHabitat = SelectHabitatForSpecies(species);
         if (targetHabitat is null)
         {
-            Console.WriteLine("No habitat available for this species.");
+            global::System.Console.WriteLine("No habitat available for this species.");
             return;
         }
 
@@ -122,19 +122,19 @@ public sealed class ZooConsoleApp
 
         if (!bought)
         {
-            Console.WriteLine("Purchase denied: not enough cash.");
+            global::System.Console.WriteLine("Purchase denied: not enough cash.");
             return;
         }
 
         try
         {
             targetHabitat.AddAnimal(animal);
-            Console.WriteLine("Animal added to the zoo.");
+            global::System.Console.WriteLine("Animal added to the zoo.");
         }
         catch (Exception ex)
         {
             _simulation.SellAnimal(animal);
-            Console.WriteLine($"Cannot add animal to habitat: {ex.Message}");
+            global::System.Console.WriteLine($"Cannot add animal to habitat: {ex.Message}");
         }
     }
 
@@ -153,7 +153,7 @@ public sealed class ZooConsoleApp
 
             if (!_simulation.BuyHabitat(species))
             {
-                Console.WriteLine("Purchase denied: not enough cash.");
+                global::System.Console.WriteLine("Purchase denied: not enough cash.");
                 return null;
             }
 
@@ -165,11 +165,11 @@ public sealed class ZooConsoleApp
         if (habitats.Count == 1)
             return habitats[0];
 
-        Console.WriteLine("Choose habitat:");
+        global::System.Console.WriteLine("Choose habitat:");
         for (var i = 0; i < habitats.Count; i++)
         {
             var habitat = habitats[i];
-            Console.WriteLine($"{i + 1}. {habitat.Species} | {habitat.Animals.Count}/{habitat.Capacity}");
+            global::System.Console.WriteLine($"{i + 1}. {habitat.Species} | {habitat.Animals.Count}/{habitat.Capacity}");
         }
 
         var choice = _input.ReadInt("Habitat:", 1, habitats.Count);
@@ -182,11 +182,11 @@ public sealed class ZooConsoleApp
         var species = _input.ReadEnumChoice<SpeciesType>("Choose habitat species:");
         if (_simulation.BuyHabitat(species))
         {
-            Console.WriteLine("Habitat purchased.");
+            global::System.Console.WriteLine("Habitat purchased.");
             OfferAnimalsForHabitat(species);
         }
         else
-            Console.WriteLine("Purchase denied: not enough cash.");
+            global::System.Console.WriteLine("Purchase denied: not enough cash.");
     }
 
     // Animals are selected from the full zoo list
@@ -195,24 +195,24 @@ public sealed class ZooConsoleApp
         var animals = _simulation.Animals.ToList();
         if (animals.Count == 0)
         {
-            Console.WriteLine("No animals to sell.");
+            global::System.Console.WriteLine("No animals to sell.");
             return;
         }
 
-        Console.WriteLine("Choose an animal to sell:");
+        global::System.Console.WriteLine("Choose an animal to sell:");
         for (var i = 0; i < animals.Count; i++)
         {
             var animal = animals[i];
-            Console.WriteLine($"{i + 1}. {animal.Name} | {animal.Species} | {animal.Sex} | Age: {animal.AgeDays}d");
+            global::System.Console.WriteLine($"{i + 1}. {animal.Name} | {animal.Species} | {animal.Sex} | Age: {animal.AgeDays}d");
         }
 
         var choice = _input.ReadInt("Animal:", 1, animals.Count);
         var selected = animals[choice - 1];
 
         if (_simulation.SellAnimal(selected))
-            Console.WriteLine("Animal sold.");
+            global::System.Console.WriteLine("Animal sold.");
         else
-            Console.WriteLine("Sale failed.");
+            global::System.Console.WriteLine("Sale failed.");
     }
 
     // Only empty habitats can be sold
@@ -221,15 +221,15 @@ public sealed class ZooConsoleApp
         var habitats = _simulation.Habitats.ToList();
         if (habitats.Count == 0)
         {
-            Console.WriteLine("No habitats to sell.");
+            global::System.Console.WriteLine("No habitats to sell.");
             return;
         }
 
-        Console.WriteLine("Choose a habitat to sell:");
+        global::System.Console.WriteLine("Choose a habitat to sell:");
         for (var i = 0; i < habitats.Count; i++)
         {
             var habitat = habitats[i];
-            Console.WriteLine($"{i + 1}. {habitat.Species} | {habitat.Animals.Count}/{habitat.Capacity}");
+            global::System.Console.WriteLine($"{i + 1}. {habitat.Species} | {habitat.Animals.Count}/{habitat.Capacity}");
         }
 
         var choice = _input.ReadInt("Habitat:", 1, habitats.Count);
@@ -237,14 +237,14 @@ public sealed class ZooConsoleApp
 
         if (selected.Animals.Count > 0)
         {
-            Console.WriteLine("Cannot sell: habitat not empty.");
+            global::System.Console.WriteLine("Cannot sell: habitat not empty.");
             return;
         }
 
         if (_simulation.SellHabitat(selected))
-            Console.WriteLine("Habitat sold.");
+            global::System.Console.WriteLine("Habitat sold.");
         else
-            Console.WriteLine("Sale failed.");
+            global::System.Console.WriteLine("Sale failed.");
     }
 
     // This is a small onboarding flow after buying a new habitat
@@ -256,7 +256,7 @@ public sealed class ZooConsoleApp
 
         if (habitat.AvailableSlots <= 0)
         {
-            Console.WriteLine("This habitat has no available slots.");
+            global::System.Console.WriteLine("This habitat has no available slots.");
             return;
         }
 
@@ -269,7 +269,7 @@ public sealed class ZooConsoleApp
 
         for (var i = 0; i < count; i++)
         {
-            Console.WriteLine($"Animal {i + 1}/{count}");
+            global::System.Console.WriteLine($"Animal {i + 1}/{count}");
             var name = _input.ReadRequiredString("Animal name:");
             var sex = _input.ReadEnumChoice<SexType>("Choose sex:");
             var ageDays = _input.ReadInt("Age in days (0 = newborn):", 0, 36500);
@@ -277,19 +277,19 @@ public sealed class ZooConsoleApp
             var animal = new ZooAnimal(name, sex, species, ageDays);
             if (!_simulation.BuyAnimal(animal))
             {
-                Console.WriteLine("Purchase denied: not enough cash.");
+                global::System.Console.WriteLine("Purchase denied: not enough cash.");
                 break;
             }
 
             try
             {
                 habitat.AddAnimal(animal);
-                Console.WriteLine("Animal added to the habitat.");
+                global::System.Console.WriteLine("Animal added to the habitat.");
             }
             catch (Exception ex)
             {
                 _simulation.SellAnimal(animal);
-                Console.WriteLine($"Cannot add animal to habitat: {ex.Message}");
+                global::System.Console.WriteLine($"Cannot add animal to habitat: {ex.Message}");
                 break;
             }
         }

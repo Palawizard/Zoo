@@ -1,5 +1,5 @@
 using Zoo.Application.Simulation;
-using Zoo.Presentation.ConsoleApp;
+using Zoo.Presentation.Console;
 
 // Create the console dependencies
 var simulation = new ZooSimulationService();

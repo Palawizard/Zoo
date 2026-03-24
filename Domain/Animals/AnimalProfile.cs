@@ -1,3 +1,7 @@
+using Zoo.Domain.Feeding;
+
+namespace Zoo.Domain.Animals;
+
 /// <summary>
 /// Stores the fixed biological and gameplay data for one species and sex
 /// </summary>

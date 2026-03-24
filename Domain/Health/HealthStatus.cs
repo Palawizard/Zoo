@@ -1,4 +1,4 @@
-namespace Zoo.Domain.Animals;
+namespace Zoo.Domain.Health;
 
 /// <summary>
 /// Lists the health states used by animals

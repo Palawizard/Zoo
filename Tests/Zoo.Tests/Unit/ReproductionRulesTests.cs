@@ -162,7 +162,8 @@ public sealed class ReproductionRulesTests
         tigress.StartGestation();
         Assert.True(tigress.IsGestating);
 
-        var gestationDays = tigress.Profile.GestationDays!.Value;
+        Assert.NotNull(tigress.Profile.GestationDays);
+        var gestationDays = tigress.Profile.GestationDays.Value;
         for (var day = 0; day < gestationDays; day++)
         {
             tigress.ApplyDailyFeeding(tigress.GetDailyFoodNeedKg());
@@ -209,7 +210,7 @@ public sealed class ReproductionRulesTests
 
         var firstNewborn = simulation.PeekNewbornAwaitingName();
         Assert.NotNull(firstNewborn);
-        Assert.StartsWith("Cub of Nala ", firstNewborn!.Name);
+        Assert.StartsWith("Cub of Nala ", firstNewborn.Name);
 
         var assignedNames = new[] { "Asha", "Kito", "Zuri" };
         var renamedCount = 0;

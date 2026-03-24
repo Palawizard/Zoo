@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Zoo.Domain.Animals;
 using Zoo.Domain.Habitats;
 
@@ -14,7 +11,6 @@ public sealed partial class ZooSimulationService
     private sealed record OffspringBatchResult(
         IReadOnlyList<ZooAnimal> Newborns,
         int TotalBornCount,
-        int SurvivorCount,
         int InfantDeathCount);
 
     /// <summary>
@@ -246,7 +242,6 @@ public sealed partial class ZooSimulationService
         return new OffspringBatchResult(
             newborns,
             count,
-            survivorCount,
             count - survivorCount);
     }
 
@@ -285,16 +280,16 @@ public sealed partial class ZooSimulationService
     // Egg counts depend on either a fixed laying month or a yearly quota
     private static int GetEggCountForMonth(Animal female, int month)
     {
-        if (female.Profile.EggLayingMonth is int layingMonth &&
+        if (female.Profile.EggLayingMonth is { } layingMonth &&
             layingMonth == month &&
-            female.Profile.LitterSize is int litterSize &&
+            female.Profile.LitterSize is { } litterSize &&
             litterSize > 0)
         {
             // Fixed laying month species use their litter size as the egg batch
             return litterSize;
         }
 
-        if (female.Profile.EggsPerYear is int eggsPerYear && eggsPerYear > 0)
+        if (female.Profile.EggsPerYear is { } eggsPerYear && eggsPerYear > 0)
         {
             var baseEggs = eggsPerYear / 12;
             var remainder = eggsPerYear % 12;

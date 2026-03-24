@@ -1,7 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Zoo.Domain.Animals;
+using Zoo.Domain.Health;
 
 namespace Zoo.Domain.Habitats;
 
@@ -138,12 +136,12 @@ public class Habitat
     /// </summary>
     public override string ToString() =>
         $"[{Species}] Achat: {BuyPrice}€ | Vente: {SellPrice}€ | Animaux: {Animals.Count}/{Capacity}";
-    
+
     // Each monthly attempt can kill one living animal while the habitat stays over capacity
     private IReadOnlyList<Animal> ProcessOverpopulation(Random random)
     {
         var lost = new List<Animal>();
-        const double OverpopulationDeathChance = 0.5;
+        const double overpopulationDeathChance = 0.5;
 
         // Nothing happens if the habitat is still inside its capacity
         if (Animals.Count <= Capacity)
@@ -155,7 +153,7 @@ public class Habitat
             if (candidates.Count == 0)
                 break;
 
-            if (random.NextDouble() >= OverpopulationDeathChance)
+            if (random.NextDouble() >= overpopulationDeathChance)
                 continue;
 
             var victim = candidates[random.Next(candidates.Count)];
@@ -165,7 +163,7 @@ public class Habitat
 
         return lost;
     }
-    
+
     // The yearly probability is converted to a lighter monthly roll
     private IReadOnlyList<Animal> ProcessSickness(Random random)
     {
