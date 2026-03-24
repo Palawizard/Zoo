@@ -1,4 +1,4 @@
-using System;
+using Zoo.Domain.Health;
 
 namespace Zoo.Domain.Animals;
 
@@ -65,7 +65,7 @@ public abstract class Animal
     /// Restores the animal to a healthy state
     /// </summary>
     public void Heal() => Health = HealthStatus.Healthy;
-    
+
     private const decimal DiseaseDeathProbability = 0.10m;
 
     /// <summary>
@@ -259,7 +259,7 @@ public abstract class Animal
         if (!CanStartGestationToday())
             return;
 
-        if (Profile.GestationDays is not int gestationDays || gestationDays <= 0)
+        if (Profile.GestationDays is not { } gestationDays || gestationDays <= 0)
             return;
 
         IsGestating = true;
@@ -308,7 +308,7 @@ public abstract class Animal
         if (!canLay)
             return false;
 
-        if (Profile.EggLayingMonth is int eggMonth)
+        if (Profile.EggLayingMonth is { } eggMonth)
             return month == eggMonth;
 
         return Profile.EggsPerYear is > 0;
@@ -325,7 +325,7 @@ public abstract class Animal
         if (!CanLayEggThisMonth(month))
             return;
 
-        if (Profile.GestationDays is not int incubationDays || incubationDays <= 0)
+        if (Profile.GestationDays is not { } incubationDays || incubationDays <= 0)
             return;
 
         if (EggIncubationRemainingDays > 0)
@@ -442,14 +442,14 @@ public abstract class Animal
             return false;
 
         DiseaseRemainingDays = 0;
-        
+
         var roll = (decimal)Random.Shared.NextDouble();
         if (roll < DiseaseDeathProbability)
         {
             Kill();
             return true;
         }
-        
+
         Heal();
         return false;
     }

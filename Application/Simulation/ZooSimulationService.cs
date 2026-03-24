@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Zoo.Domain.Animals;
 using Zoo.Domain.Events;
 using Zoo.Domain.Feeding;

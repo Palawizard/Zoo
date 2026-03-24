@@ -7,7 +7,7 @@ namespace Zoo.Desktop;
 /// <summary>
 /// Avalonia application entry point
 /// </summary>
-public partial class App : Avalonia.Application
+public class App : Avalonia.Application
 {
     /// <summary>
     /// Loads the application resources

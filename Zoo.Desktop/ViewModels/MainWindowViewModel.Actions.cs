@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using Zoo.Application.Simulation;
 using Zoo.Desktop.Models;
 using Zoo.Desktop.Styling;

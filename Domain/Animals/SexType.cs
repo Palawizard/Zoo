@@ -1,3 +1,5 @@
+namespace Zoo.Domain.Animals;
+
 /// <summary>
 /// Lists the supported animal sexes
 /// </summary>

@@ -1,3 +1,5 @@
+namespace Zoo.Domain.Animals;
+
 /// <summary>
 /// Lists the species managed by the zoo
 /// </summary>

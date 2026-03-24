@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using Zoo.Domain.Animals;
 using Zoo.Domain.Events;
 
@@ -274,9 +272,9 @@ public sealed partial class ZooSimulationService
     }
 
     // This just forwards the projected season state
-    private decimal CollectMonthlyVisitorRevenue()
+    private void CollectMonthlyVisitorRevenue()
     {
-        return CollectVisitorRevenue(IsHighSeason);
+        CollectVisitorRevenue(IsHighSeason);
     }
 
     // Protected species generate a yearly subsidy

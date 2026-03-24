@@ -1,3 +1,5 @@
+using Zoo.Domain.Animals;
+
 namespace Zoo.Domain.Habitats;
 
 /// <summary>

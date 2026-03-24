@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Linq;
 using Zoo.Desktop.Models;
 using Zoo.Desktop.Utilities;
 using Zoo.Domain.Animals;
@@ -37,7 +36,7 @@ public sealed partial class MainWindowViewModel
         ExposureCaption = $"{habitats.Sum(habitat => habitat.Animals.Count)}/{Math.Max(1, habitats.Sum(habitat => habitat.Capacity))} occupied slots across habitats";
         RevenueMetric = $"{totalProjectedRevenue:0.##} EUR";
         RevenueCaption = "Current estimate.";
-        UpdateWatchlist(animals, habitats, visibleCount);
+        UpdateWatchlist(animals, habitats);
 
         // Refreshing the selected habitat would normally trigger extra UI updates, so it is muted here
         _isRefreshingSnapshot = true;
@@ -183,7 +182,7 @@ public sealed partial class MainWindowViewModel
     /// <summary>
     /// Updates the watchlist summary shown on the dashboard
     /// </summary>
-    private void UpdateWatchlist(IReadOnlyList<ZooAnimal> animals, IReadOnlyList<Habitat> habitats, int visibleCount)
+    private void UpdateWatchlist(IReadOnlyList<ZooAnimal> animals, IReadOnlyList<Habitat> habitats)
     {
         var aliveAnimals = animals.Where(animal => animal.IsAlive).ToList();
         var sickCount = aliveAnimals.Count(animal => animal.IsSick);
@@ -246,7 +245,7 @@ public sealed partial class MainWindowViewModel
         }
 
         if (animal.Sex == SexType.Female &&
-            animal.Profile.EggLayingMonth is int layingMonth &&
+            animal.Profile.EggLayingMonth is { } layingMonth &&
             layingMonth != _simulation.CurrentMonth)
         {
             // Fixed laying month species stay blocked outside their allowed month
@@ -256,12 +255,6 @@ public sealed partial class MainWindowViewModel
         return reasons.Count == 0
             ? "Reproduction ready"
             : $"Reproduction blocked: {string.Join(", ", reasons.Distinct())}";
-    }
-
-    // This helper just checks whether a compatible mate exists
-    private bool HasCompatibleMate(ZooAnimal animal, Habitat habitat)
-    {
-        return GetCompatibleMate(animal, habitat) is not null;
     }
 
     // Compatibility depends on species, sex and the current reproduction state
@@ -314,19 +307,19 @@ public sealed partial class MainWindowViewModel
         if (female is null)
             return Math.Max(1, animal.Profile.LitterSize ?? 1);
 
-        if (female.Profile.EggLayingMonth is int layingMonth)
+        if (female.Profile.EggLayingMonth is { } layingMonth)
         {
             // Species with a fixed laying month may need zero slots this month
-            if (female.Profile.LitterSize is int litterSize && litterSize > 0 && layingMonth == _simulation.CurrentMonth)
+            if (female.Profile.LitterSize is { } litterSize && litterSize > 0 && layingMonth == _simulation.CurrentMonth)
                 return litterSize;
 
             return 0;
         }
 
-        if (female.Profile.EggsPerYear is int eggsPerYear && eggsPerYear > 0)
+        if (female.Profile.EggsPerYear is { } eggsPerYear && eggsPerYear > 0)
             return GetEggCountForMonth(eggsPerYear, _simulation.CurrentMonth);
 
-        if (female.Profile.LitterSize is int femaleLitterSize && femaleLitterSize > 0)
+        if (female.Profile.LitterSize is { } femaleLitterSize && femaleLitterSize > 0)
             return femaleLitterSize;
 
         return Math.Max(1, animal.Profile.LitterSize ?? compatibleMate?.Profile.LitterSize ?? 1);
