@@ -7,4 +7,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="Tests/**/*.cs" />
+    <Compile Remove="Zoo.Desktop/**/*.cs" />
+    <EmbeddedResource Remove="Tests/**/*" />
+    <EmbeddedResource Remove="Zoo.Desktop/**/*" />
+    <None Remove="Tests/**/*" />
+    <None Remove="Zoo.Desktop/**/*" />
+  </ItemGroup>
+
 </Project>
