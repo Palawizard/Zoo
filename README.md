@@ -74,6 +74,12 @@ cd Zoo
 dotnet restore
 ```
 
+### Lancer l'interface desktop
+
+```bash
+dotnet run --project Zoo.Desktop/Zoo.Desktop.csproj
+```
+
 ### Lancer la version console
 
 ```bash
@@ -81,12 +87,6 @@ dotnet run
 ```
 
 Application lancée depuis `Program.cs`.
-
-### Lancer l'interface desktop
-
-```bash
-dotnet run --project Zoo.Desktop/Zoo.Desktop.csproj
-```
 
 ### Lancer les tests
 
