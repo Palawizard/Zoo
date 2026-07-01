@@ -11,6 +11,7 @@
         x:Class="Zoo.Desktop.Views.MainWindow"
         x:DataType="viewModels:MainWindowViewModel"
         Title="Zoo Manager"
+        Icon="/Assets/app.ico"
         Width="1400"
         Height="920"
         MinWidth="960"

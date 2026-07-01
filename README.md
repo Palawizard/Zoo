@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="Zoo.Desktop/Assets/app-icon.svg" alt="Zoo icon" width="128">
+
 # Zoo
 
 ### Simulateur de zoo en C# / .NET 10 avec moteur de règles, interface console et dashboard desktop Avalonia
