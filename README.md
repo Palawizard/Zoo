@@ -11,8 +11,6 @@
 
 </div>
 
----
-
 ## Features
 
 <table>
@@ -58,9 +56,7 @@
 </tr>
 </table>
 
----
-
-## Quick Start
+## Quick start
 
 ### Prérequis
 - `.NET SDK 10.0+`
@@ -109,8 +105,6 @@ Pourquoi cette stack ?
     xUnit : couverture rapide des règles critiques
 
     Architecture par couches : Domain / Application / Presentation séparés
-
----
 
 ## Architecture
 
@@ -181,8 +175,6 @@ Pour `Zoo.Desktop`, la partie interface suit une organisation plus conventionnel
         └── Integration/                # Scénario long de simulation
 ```
 
----
-
 ## Règles de simulation
 
 ### Espèces gérées
@@ -224,8 +216,6 @@ Pour `Zoo.Desktop`, la partie interface suit une organisation plus conventionnel
 ### Subventions annuelles
 - Les tigres et aigles donnent lieu à une subvention annuelle d'espèces protégées
 
----
-
 ## Expérience utilisateur
 
 ### Version console
@@ -248,8 +238,6 @@ Pour `Zoo.Desktop`, la partie interface suit une organisation plus conventionnel
 
 Note: l'interface desktop est la plus complète pour exploiter les interruptions de simulation et les dialogues métier.
 
----
-
 ## Tests
 
 La solution contient une suite `xUnit` couvrant les règles principales:
@@ -267,8 +255,6 @@ Commande:
 ```bash
 dotnet test Zoo.sln
 ```
-
----
 
 ## Commandes utiles
 
